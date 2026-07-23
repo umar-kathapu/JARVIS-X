@@ -1,0 +1,50 @@
+name: JARVIS-X CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    name: Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.4
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Monorepo Dependencies
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Check Environment Config
+        run: pnpm check-env
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Typecheck Workspace
+        run: pnpm --filter @jarvis-x/backend exec tsc --noEmit
+
+      - name: Run Vitest Suite
+        run: pnpm test
+
+      - name: Build Monorepo Artifacts
+        run: pnpm build

@@ -1,0 +1,19 @@
+{
+  "name": "@jarvis-x/utils",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src --ext .ts",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@jarvis-x/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.2"
+  }
+}

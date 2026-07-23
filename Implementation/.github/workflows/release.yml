@@ -1,0 +1,48 @@
+name: JARVIS-X Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release-desktop:
+    name: Build Multi-Platform Installers
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.4
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Monorepo Packages
+        run: pnpm build
+
+      - name: Compile Electron Desktop App
+        run: pnpm --filter @jarvis-x/desktop build
+
+      - name: Electron Builder Multi-Platform Package
+        run: pnpm --filter @jarvis-x/desktop exec electron-builder --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-x-installers-${{ runner.os }}
+          path: apps/desktop/dist/*

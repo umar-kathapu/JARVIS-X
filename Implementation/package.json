@@ -1,0 +1,50 @@
+{
+  "name": "jarvis-x-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JARVIS-X Enterprise AI Assistant Monorepo",
+  "author": "JARVIS-X Core Team",
+  "license": "MIT",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:desktop": "turbo run dev --filter=@jarvis-x/desktop",
+    "dev:backend": "turbo run dev --filter=@jarvis-x/backend",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "prisma:generate": "turbo run prisma:generate",
+    "prisma:migrate": "pnpm --filter @jarvis-x/backend exec prisma migrate dev",
+    "prisma:studio": "pnpm --filter @jarvis-x/backend exec prisma studio",
+    "clean": "node scripts/clean.js",
+    "check-env": "node scripts/check-env.js"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "turbo": "^1.13.0",
+    "typescript": "^5.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}

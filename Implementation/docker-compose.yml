@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jarvis_x_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: jarvis_admin
+      POSTGRES_PASSWORD: jarvis_secure_pass_2026
+      POSTGRES_DB: jarvis_x_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jarvis_admin -d jarvis_x_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./apps/backend/Dockerfile
+    container_name: jarvis_x_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://jarvis_admin:jarvis_secure_pass_2026@postgres:5432/jarvis_x_db?schema=public
+      JWT_SECRET: jarvis_super_secret_jwt_key_enterprise_2026_x
+
+volumes:
+  postgres_data:
+    driver: local

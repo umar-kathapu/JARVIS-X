@@ -1,0 +1,669 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserRoleEnum {
+  ADMIN
+  OPERATOR
+  SYSTEM
+  GUEST
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+  TOOL
+}
+
+enum MemoryType {
+  SHORT_TERM
+  LONG_TERM
+  EPISODIC
+  SEMANTIC
+}
+
+enum AutomationStatus {
+  ACTIVE
+  PAUSED
+  FAILED
+  COMPLETED
+}
+
+enum ExecutionStatus {
+  RUNNING
+  SUCCESS
+  FAILURE
+  TIMED_OUT
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  SYSTEM
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXECUTE
+}
+
+// ==========================================
+// AUTHENTICATION & USER MANAGEMENT
+// ==========================================
+
+model User {
+  id               String           @id @default(uuid())
+  email            String           @unique
+  name             String
+  passwordHash     String?
+  roleEnum         UserRoleEnum     @default(OPERATOR)
+  roleId           String?
+  role             Role?            @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  avatarUrl        String?
+  isActive         Boolean          @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  sessions         Session[]
+  refreshTokens    RefreshToken[]
+  apiKeys          ApiKey[]
+  settings         Settings?
+  theme            Theme?
+  conversations    Conversation[]
+  tasks            Task[]
+  notifications    Notification[]
+  calendars        Calendar[]
+  reminders        Reminder[]
+  knowledgeBases   KnowledgeBase[]
+  folders          Folder[]
+  files            File[]
+  devices          Device[]
+  auditLogs        AuditLog[]
+  activityLogs     ActivityLog[]
+
+  @@index([email])
+  @@index([roleEnum])
+  @@index([deletedAt])
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  users       User[]
+  permissions Permission[] @relation("RolePermissions")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  action      String   // e.g., "user:create", "system:read"
+  resource    String
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles       Role[]   @relation("RolePermissions")
+
+  @@unique([action, resource])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  isRevoked Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  keyHash    String    @unique
+  prefix     String
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([keyHash])
+}
+
+model Device {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName     String
+  deviceType     String          // e.g. "desktop", "mobile"
+  osVersion      String
+  appVersion     String
+  lastSeenAt     DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+
+  deviceSessions DeviceSession[]
+
+  @@index([userId])
+}
+
+model DeviceSession {
+  id        String   @id @default(uuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  sessionKey String  @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([deviceId])
+}
+
+// ==========================================
+// PREFERENCES
+// ==========================================
+
+model Settings {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationsEnabled Boolean  @default(true)
+  aiAutoSuggest        Boolean  @default(true)
+  defaultModel         String   @default("gpt-4o")
+  customConfig         Json?
+  updatedAt            DateTime @updatedAt
+}
+
+model Theme {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  themeName    String   @default("dark")
+  accentColor  String   @default("#6366F1")
+  fontFamily   String   @default("Inter")
+  customCss    String?
+  updatedAt    DateTime @updatedAt
+}
+
+// ==========================================
+// CONVERSATIONS & AI CHAT
+// ==========================================
+
+model Conversation {
+  id        String    @id @default(uuid())
+  title     String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modelId   String?
+  aiModel   AIModel?  @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  isArchived Boolean  @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  messages  Message[]
+
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String
+  tokensUsed     Int          @default(0)
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+// ==========================================
+// MEMORY & VECTOR EMBEDDINGS
+// ==========================================
+
+model Memory {
+  id         String     @id @default(uuid())
+  type       MemoryType @default(LONG_TERM)
+  key        String
+  content    String
+  importance Float      @default(1.0)
+  tags       String[]
+  metadata   Json?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  embeddings MemoryEmbedding[]
+
+  @@index([key])
+  @@index([type])
+}
+
+model MemoryEmbedding {
+  id         String   @id @default(uuid())
+  memoryId   String
+  memory     Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  vector     Float[]
+  dimension  Int      @default(1536)
+  modelName  String
+  createdAt  DateTime @default(now())
+
+  @@index([memoryId])
+}
+
+// ==========================================
+// PLUGINS
+// ==========================================
+
+model Plugin {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  version     String
+  description String
+  enabled     Boolean  @default(true)
+  author      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  settings    PluginSetting[]
+  permissions PluginPermission[]
+}
+
+model PluginSetting {
+  id        String   @id @default(uuid())
+  pluginId  String
+  plugin    Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@unique([pluginId, key])
+}
+
+model PluginPermission {
+  id          String   @id @default(uuid())
+  pluginId    String
+  plugin      Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  permission  String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@unique([pluginId, permission])
+}
+
+// ==========================================
+// AUTOMATION & WORKFLOWS
+// ==========================================
+
+model Automation {
+  id             String                @id @default(uuid())
+  name           String
+  description    String?
+  cronExpression String
+  status         AutomationStatus      @default(ACTIVE)
+  lastRun        DateTime?
+  nextRun        DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  executions     AutomationExecution[]
+}
+
+model AutomationExecution {
+  id           String          @id @default(uuid())
+  automationId String
+  automation   Automation      @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  status       ExecutionStatus @default(RUNNING)
+  logOutput    String?
+  startedAt    DateTime        @default(now())
+  finishedAt   DateTime?
+
+  @@index([automationId])
+}
+
+model Workflow {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  isPublished Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  steps       WorkflowStep[]
+}
+
+model WorkflowStep {
+  id          String   @id @default(uuid())
+  workflowId  String
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepNumber  Int
+  actionName  String
+  parameters  Json
+  createdAt   DateTime @default(now())
+
+  @@unique([workflowId, stepNumber])
+}
+
+// ==========================================
+// TASKS, NOTIFICATIONS & CALENDAR
+// ==========================================
+
+model Task {
+  id            String     @id @default(uuid())
+  title         String
+  description   String
+  status        TaskStatus @default(PENDING)
+  priority      Priority   @default(MEDIUM)
+  assignedAgent String
+  userId        String?
+  user          User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  resultPayload Json?
+  errorMessage  String?
+  dueDate       DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([status])
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  isRead    Boolean          @default(false)
+  linkUrl   String?
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model Calendar {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  color       String   @default("#4F46E5")
+  createdAt   DateTime @default(now())
+
+  events      Event[]
+
+  @@index([userId])
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  calendarId  String
+  calendar    Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  createdAt   DateTime @default(now())
+
+  @@index([calendarId])
+}
+
+model Reminder {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  remindAt    DateTime
+  isTriggered Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ==========================================
+// KNOWLEDGE BASE & FILES
+// ==========================================
+
+model KnowledgeBase {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+
+  documents   Document[]
+
+  @@index([userId])
+}
+
+model Document {
+  id              String        @id @default(uuid())
+  knowledgeBaseId String
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  title           String
+  content         String
+  fileType        String
+  chunkCount      Int           @default(0)
+  createdAt       DateTime      @default(now())
+
+  @@index([knowledgeBaseId])
+}
+
+model Folder {
+  id        String   @id @default(uuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  subfolders Folder[] @relation("FolderHierarchy")
+  createdAt DateTime @default(now())
+
+  files     File[]
+
+  @@index([userId])
+}
+
+model File {
+  id        String   @id @default(uuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId  String?
+  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  mimeType  String
+  sizeBytes BigInt
+  path      String
+  hash      String
+  createdAt DateTime @default(now())
+
+  media     Media?
+
+  @@index([userId])
+  @@index([folderId])
+}
+
+model Media {
+  id          String   @id @default(uuid())
+  fileId      String   @unique
+  file        File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  width       Int?
+  height      Int?
+  durationSec Float?
+  thumbnail   String?
+  createdAt   DateTime @default(now())
+}
+
+// ==========================================
+// AI MODELS & PROMPTS
+// ==========================================
+
+model AIModel {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  provider    String   // e.g. "openai", "anthropic", "ollama"
+  modelCode   String
+  contextWindow Int    @default(8192)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  configurations ModelConfiguration[]
+  conversations  Conversation[]
+}
+
+model ModelConfiguration {
+  id          String   @id @default(uuid())
+  modelId     String
+  model       AIModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  temperature Float    @default(0.7)
+  topP        Float    @default(1.0)
+  maxTokens   Int      @default(2048)
+  systemPrompt String?
+  createdAt   DateTime @default(now())
+
+  @@index([modelId])
+}
+
+model PromptTemplate {
+  id          String          @id @default(uuid())
+  name        String          @unique
+  description String?
+  content     String
+  variables   String[]
+  createdAt   DateTime        @default(now())
+
+  history     PromptHistory[]
+}
+
+model PromptHistory {
+  id          String         @id @default(uuid())
+  templateId  String?
+  template    PromptTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  promptText  String
+  latencyMs   Int
+  tokensUsed  Int
+  createdAt   DateTime       @default(now())
+
+  @@index([templateId])
+}
+
+// ==========================================
+// SYSTEM AUDIT & CONFIGURATION
+// ==========================================
+
+model AuditLog {
+  id        String      @id @default(uuid())
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    AuditAction
+  resource  String
+  details   Json?
+  ipAddress String?
+  createdAt DateTime    @default(now())
+
+  @@index([userId])
+  @@index([action])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  level     String
+  scope     String
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([scope])
+}
+
+model ApplicationConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isEnabled   Boolean  @default(false)
+  rolloutPct  Int      @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UpdateHistory {
+  id          String   @id @default(uuid())
+  version     String
+  description String?
+  installedAt DateTime @default(now())
+}

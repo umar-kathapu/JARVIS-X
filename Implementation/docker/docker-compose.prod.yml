@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres_prod:
+    image: postgres:16-alpine
+    container_name: jarvis_x_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jarvis_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jarvis_secure_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-jarvis_x_prod_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jarvis_admin -d jarvis_x_prod_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  redis_prod:
+    image: redis:7-alpine
+    container_name: jarvis_x_redis_prod
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend_prod:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend.prod
+    container_name: jarvis_x_backend_prod
+    restart: unless-stopped
+    depends_on:
+      postgres_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://jarvis_admin:jarvis_secure_pass_2026@postgres_prod:5432/jarvis_x_prod_db?schema=public
+      REDIS_URL: redis://redis_prod:6379
+      JWT_SECRET: ${JWT_SECRET:-jarvis_super_secret_jwt_key_enterprise_2026_x}
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  redis_prod_data:
+    driver: local
