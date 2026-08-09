@@ -35,7 +35,6 @@ async function buildDesktopApp() {
       rollupOptions: {
         external: [
           'electron',
-          'zod',
           'child_process',
           'fs',
           'fs/promises',
@@ -45,6 +44,14 @@ async function buildDesktopApp() {
           'events',
           'util',
           'stream',
+          'http',
+          'https',
+          'net',
+          'tls',
+          'url',
+          'buffer',
+          'string_decoder',
+          'perf_hooks',
         ],
       },
     },
@@ -77,6 +84,7 @@ async function buildDesktopApp() {
   await build({
     configFile: path.resolve(rootDir, 'vite.config.ts'),
     root: rootDir,
+    base: './',
     build: {
       outDir: path.resolve(rootDir, 'dist/renderer'),
       emptyOutDir: true,

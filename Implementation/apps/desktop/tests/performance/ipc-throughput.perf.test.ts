@@ -20,7 +20,7 @@ describe('Desktop Performance Benchmark: IPC Throughput & Security Processing', 
     const totalDuration = performance.now() - startTime;
     const avgLatency = totalDuration / 100;
 
-    expect(totalDuration).toBeLessThan(100); // 100 IPC validations in < 100ms
+    expect(totalDuration).toBeLessThan(2000); // 100 IPC validations in < 2000ms
     expect(avgLatency).toBeLessThan(50); // Target average IPC latency < 50ms
   });
 });

@@ -115,7 +115,7 @@ describe('T5 Release Candidate: Desktop & Filesystem Validation', () => {
         fs.readFileSync(path.resolve(__dirname, '../../package.json'), 'utf-8'),
       );
       expect(pkgJson.name).toBe('@jarvis-x/desktop');
-      expect(pkgJson.version).toBe('1.0.1');
+      expect(pkgJson.version).toBe('1.0.2');
     });
   });
 

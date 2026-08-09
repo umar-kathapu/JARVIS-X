@@ -7,6 +7,8 @@ import { clipboardService } from '../clipboard/clipboard.service.js';
 import { filesystemService } from '../filesystem/filesystem.service.js';
 import { terminalService } from '../terminal/terminal.service.js';
 import { screenService } from '../screen/screen.service.js';
+import { agentExecutor } from '../agent/agent.executor.js';
+import { toolRegistry } from '../agent/tool.registry.js';
 
 // Strict Zod Validation Schemas for IPC Channels
 const SetAlwaysOnTopSchema = z.boolean();
@@ -18,6 +20,9 @@ const WriteClipboardSchema = z.string().max(10000);
 const ExecuteTerminalSchema = z.object({
   command: z.string().min(1).max(100),
   args: z.array(z.string()).optional(),
+});
+const AgentExecuteGoalSchema = z.object({
+  goal: z.string().min(1).max(500),
 });
 
 export function registerIpcHandlers(): void {
@@ -87,5 +92,24 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('CAPTURE_SCREEN', async (event) => {
     if (!event.senderFrame) return null;
     return screenService.capturePrimaryScreen();
+  });
+
+  // 8. General-Purpose Autonomous AI Agent
+  ipcMain.handle('AGENT_EXECUTE_GOAL', async (event, payload: unknown) => {
+    if (!event.senderFrame) {
+      return {
+        plan: null,
+        finalResponse: 'Security Error: Invalid IPC frame.',
+      };
+    }
+    const validated = AgentExecuteGoalSchema.parse(
+      typeof payload === 'string' ? { goal: payload } : payload,
+    );
+    return agentExecutor.executeGoal(validated.goal);
+  });
+
+  ipcMain.handle('AGENT_GET_TOOLS', async (event) => {
+    if (!event.senderFrame) return [];
+    return toolRegistry.getAllDefinitions();
   });
 }

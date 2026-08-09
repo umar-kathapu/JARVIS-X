@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Sidebar, Card, Button } from '@jarvis-x/ui';
+import { Sidebar, Button } from '@jarvis-x/ui';
 import { useAppStore } from './store/useAppStore';
+import { DashboardPage } from './components/pages/DashboardPage';
+import { AiAgentsPage } from './components/pages/AiAgentsPage';
+import { AgentTasksPage } from './components/pages/AgentTasksPage';
+import { DesktopSettingsPage } from './components/pages/DesktopSettingsPage';
 
 export const App: React.FC = () => {
   const { activeTab, setActiveTab } = useAppStore();
+  const [isCopied, setIsCopied] = useState(false);
   const [metrics, setMetrics] = useState<{
     cpuUsagePercentage: number;
     usedMemoryMb: number;
@@ -16,12 +21,18 @@ export const App: React.FC = () => {
     platform: 'win32',
   });
 
-  useEffect(() => {
+  const fetchMetrics = () => {
     if ((window as any).electronAPI) {
       (window as any).electronAPI.getSystemMetrics().then((res: any) => {
         if (res) setMetrics(res);
       });
     }
+  };
+
+  useEffect(() => {
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleSendNotification = () => {
@@ -33,12 +44,76 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleCopyTelemetry = async () => {
+    const telemetry = JSON.stringify(
+      {
+        timestamp: new Date().toISOString(),
+        metrics,
+        version: '1.0.1',
+        activeTab,
+      },
+      null,
+      2,
+    );
+    if ((window as any).electronAPI) {
+      await (window as any).electronAPI.writeClipboard(telemetry);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2500);
+    }
+  };
+
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', active: activeTab === 'dashboard' },
     { id: 'agents', label: 'AI Agents', icon: '🤖', active: activeTab === 'agents' },
     { id: 'tasks', label: 'Agent Tasks', icon: '⚡', active: activeTab === 'tasks' },
     { id: 'settings', label: 'Desktop Settings', icon: '⚙️', active: activeTab === 'settings' },
   ];
+
+  const getPageTitle = (tab: string) => {
+    switch (tab) {
+      case 'dashboard':
+        return 'System Dashboard';
+      case 'agents':
+        return 'AI Agents & Planning Engine';
+      case 'tasks':
+        return 'Agent Tasks & Automation';
+      case 'settings':
+        return 'Desktop & OS Settings';
+      default:
+        return tab;
+    }
+  };
+
+  const renderActivePage = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <DashboardPage
+            metrics={metrics}
+            onRefreshMetrics={fetchMetrics}
+            onSendNotification={handleSendNotification}
+            onCopyTelemetry={handleCopyTelemetry}
+            isCopied={isCopied}
+          />
+        );
+      case 'agents':
+        return <AiAgentsPage />;
+      case 'tasks':
+        return <AgentTasksPage />;
+      case 'settings':
+        return <DesktopSettingsPage />;
+      default:
+        return (
+          <DashboardPage
+            metrics={metrics}
+            onRefreshMetrics={fetchMetrics}
+            onSendNotification={handleSendNotification}
+            onCopyTelemetry={handleCopyTelemetry}
+            isCopied={isCopied}
+          />
+        );
+    }
+  };
 
   return (
     <div className="flex h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden select-none">
@@ -47,7 +122,7 @@ export const App: React.FC = () => {
       <main className="flex-1 p-8 overflow-y-auto space-y-6">
         <header className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-100 capitalize">{activeTab}</h1>
+            <h1 className="text-2xl font-bold text-slate-100">{getPageTitle(activeTab)}</h1>
             <p className="text-xs text-slate-400 mt-1">Native AI Operating System Integration</p>
           </div>
           <div className="flex items-center gap-3">
@@ -55,27 +130,14 @@ export const App: React.FC = () => {
               Hotkey: Ctrl+Alt+J
             </span>
             <Button variant="primary" size="sm" onClick={handleSendNotification}>
-              Test Native Notification
+              Test Notification
             </Button>
           </div>
         </header>
 
-        <section className="grid grid-cols-3 gap-6">
-          <Card title="CPU Usage" subtitle={`OS Platform: ${metrics.platform}`}>
-            <div className="mt-4 text-3xl font-extrabold text-indigo-400">
-              {metrics.cpuUsagePercentage}%
-            </div>
-          </Card>
-          <Card title="RAM Allocation" subtitle={`Total: ${metrics.totalMemoryMb} MB`}>
-            <div className="mt-4 text-3xl font-extrabold text-emerald-400">
-              {metrics.usedMemoryMb} MB
-            </div>
-          </Card>
-          <Card title="Desktop System" subtitle="Tray & Global Shortcuts">
-            <div className="mt-4 text-3xl font-extrabold text-sky-400">ONLINE</div>
-          </Card>
-        </section>
+        {renderActivePage()}
       </main>
     </div>
   );
 };
+

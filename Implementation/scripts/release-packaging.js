@@ -34,11 +34,11 @@ const metadata = {
   arch: 'x64',
 };
 
-if (metadata.version !== '1.0.1' || metadata.desktopVersion !== '1.0.1' || metadata.backendVersion !== '1.0.1') {
-  console.error('❌ Version mismatch! Version must be 1.0.1 for Release Candidate.');
+if (metadata.version !== '1.0.2' || metadata.desktopVersion !== '1.0.2' || metadata.backendVersion !== '1.0.2') {
+  console.error('❌ Version mismatch! Version must be 1.0.2 for Release Candidate.');
   process.exit(1);
 }
-console.log('✅ Metadata validated: v1.0.1 (JARVIS-X Core Team)\n');
+console.log('✅ Metadata validated: v1.0.2 (JARVIS-X Core Team)\n');
 
 // 2. Locate Electron Runtime Binary Distribution
 console.log('2. Locating Real Electron Runtime Binaries...');
@@ -64,7 +64,15 @@ console.log(`✅ Found Real Electron Executable: ${electronExeSource} (${(exeSta
 // 3. Assemble Complete Production Package (win-unpacked)
 console.log('3. Assembling Complete Production Release Package (win-unpacked)...');
 if (fs.existsSync(releaseDir)) {
-  fs.rmSync(releaseDir, { recursive: true, force: true });
+  try {
+    fs.rmSync(releaseDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (_e) {
+    for (const item of fs.readdirSync(releaseDir)) {
+      try {
+        fs.rmSync(path.join(releaseDir, item), { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      } catch (_ignored) {}
+    }
+  }
 }
 fs.mkdirSync(releaseDir, { recursive: true });
 
@@ -76,10 +84,25 @@ function copyFolderSync(from, to) {
   fs.mkdirSync(to, { recursive: true });
   fs.readdirSync(from).forEach((element) => {
     const fromPath = path.join(from, element);
-    const toPath = path.join(to, element);
+    const destName = element === 'electron.exe' ? 'JARVIS-X.exe' : element;
+    const toPath = path.join(to, destName);
     const stat = fs.lstatSync(fromPath);
     if (stat.isFile()) {
-      fs.copyFileSync(fromPath, toPath);
+      try {
+        fs.copyFileSync(fromPath, toPath);
+      } catch (err) {
+        if (fs.existsSync(toPath) && fs.statSync(toPath).size === stat.size) {
+          // File already exists with identical size, safe to continue
+        } else {
+          // Retry with sleep if busy
+          try {
+            const buffer = fs.readFileSync(fromPath);
+            fs.writeFileSync(toPath, buffer);
+          } catch {
+            throw err;
+          }
+        }
+      }
     } else if (stat.isDirectory()) {
       copyFolderSync(fromPath, toPath);
     }
@@ -88,12 +111,7 @@ function copyFolderSync(from, to) {
 
 copyFolderSync(electronDistDir, unpackedAppDir);
 
-// Rename electron.exe to JARVIS-X.exe
 const targetExe = path.join(unpackedAppDir, 'JARVIS-X.exe');
-const defaultExe = path.join(unpackedAppDir, 'electron.exe');
-if (fs.existsSync(defaultExe)) {
-  fs.renameSync(defaultExe, targetExe);
-}
 
 // Prepare resources/app directory
 const appDir = path.join(unpackedAppDir, 'resources', 'app');
@@ -120,7 +138,7 @@ if (fs.existsSync(resourceDir)) {
 // Create application manifest
 const manifestContent = JSON.stringify({
   productName: 'JARVIS-X',
-  version: '1.0.1',
+  version: '1.0.2',
   main: 'dist/main/index.cjs',
   preload: 'dist/preload/index.cjs',
   renderer: 'dist/renderer/index.html',
@@ -154,15 +172,30 @@ console.log(`✅ PE Header Validated: DOS Magic 'MZ', PE Signature at offset 0x$
 
 // 5. Create Standalone Release ZIP Archive
 console.log('5. Generating Complete Production Release Archive (ZIP)...');
-const zipFilename = 'JARVIS-X-1.0.1-win-x64.zip';
+const zipFilename = 'JARVIS-X-1.0.2-win-x64.zip';
 const zipPath = path.join(releaseDir, zipFilename);
 
-// Compress win-unpacked directory using PowerShell Compress-Archive
+// Compress win-unpacked directory using .NET ZipFile (Fast, handles read sharing)
 console.log('   -> Compressing win-unpacked into portable release archive (this may take a few seconds)...');
-execSync(
-  `powershell -Command "Compress-Archive -Path '${unpackedAppDir}\\*' -DestinationPath '${zipPath}' -Force -CompressionLevel Optimal"`,
-  { stdio: 'inherit' },
-);
+
+if (fs.existsSync(zipPath)) {
+  try { fs.unlinkSync(zipPath); } catch {}
+}
+
+const escapedUnpacked = unpackedAppDir.replace(/'/g, "''");
+const escapedZip = zipPath.replace(/'/g, "''");
+
+try {
+  execSync(
+    `powershell -NoProfile -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('${escapedUnpacked}', '${escapedZip}')"`,
+    { stdio: 'inherit' },
+  );
+} catch {
+  execSync(
+    `powershell -Command "Compress-Archive -Path '${escapedUnpacked}\\*' -DestinationPath '${escapedZip}' -Force"`,
+    { stdio: 'inherit' },
+  );
+}
 
 const zipStats = fs.statSync(zipPath);
 const zipBuffer = fs.readFileSync(zipPath);

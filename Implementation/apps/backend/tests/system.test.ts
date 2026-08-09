@@ -38,7 +38,7 @@ describe('System REST APIs', () => {
     const body = JSON.parse(response.payload);
     expect(body.success).toBe(true);
     expect(body.data.name).toBe('JARVIS-X Enterprise Backend API');
-    expect(body.data.version).toBe('1.0.1');
+    expect(body.data.version).toBe('1.0.2');
   });
 
   it('GET /status should return system memory and uptime metrics', async () => {

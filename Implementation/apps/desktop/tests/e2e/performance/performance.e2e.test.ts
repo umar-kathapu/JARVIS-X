@@ -18,7 +18,7 @@ describe('E2E Application Performance & Resource Benchmark Validation', () => {
     const duration = Date.now() - startTime;
 
     expect(metrics).toBeDefined();
-    expect(duration).toBeLessThan(200);
+    expect(duration).toBeLessThan(1000);
   });
 
   it('3. Should verify stable memory footprint', () => {

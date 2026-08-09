@@ -53,4 +53,74 @@ describe('Regression Test: Production Electron ESM/CommonJS Module Format Consis
 
     expect(buildScript).toMatch(/fileName:\s*\(\)\s*=>\s*['"]index\.cjs['"]/);
   });
+
+  it('5. Main process bundle must bundle non-builtin dependencies (e.g. zod) without externalizing them', () => {
+    const mainBundlePath = path.join(mainDistDir, 'index.cjs');
+    if (fs.existsSync(mainBundlePath)) {
+      const content = fs.readFileSync(mainBundlePath, 'utf-8');
+      const requireRegex = /require\(["']([^"']+)["']\)/g;
+      const matches = [];
+      let m;
+      while ((m = requireRegex.exec(content)) !== null) {
+        matches.push(m[1]);
+      }
+      const uniqueRequires = [...new Set(matches)];
+
+      const allowedBuiltins = new Set([
+        'electron', 'child_process', 'fs', 'fs/promises', 'path', 'os',
+        'crypto', 'events', 'util', 'stream', 'http', 'https', 'net',
+        'tls', 'url', 'buffer', 'string_decoder', 'perf_hooks'
+      ]);
+
+      const externalNpmRequires = uniqueRequires.filter(
+        (r) => !allowedBuiltins.has(r) && !r.startsWith('node:')
+      );
+
+      // Must not require unbundled npm packages like 'zod'
+      expect(externalNpmRequires).toEqual([]);
+    }
+  });
+
+  it('6. Preload script bundle must only require electron or built-ins', () => {
+    const preloadBundlePath = path.join(preloadDistDir, 'index.cjs');
+    if (fs.existsSync(preloadBundlePath)) {
+      const content = fs.readFileSync(preloadBundlePath, 'utf-8');
+      const requireRegex = /require\(["']([^"']+)["']\)/g;
+      const matches = [];
+      let m;
+      while ((m = requireRegex.exec(content)) !== null) {
+        matches.push(m[1]);
+      }
+      const uniqueRequires = [...new Set(matches)];
+
+      const externalNpmRequires = uniqueRequires.filter(
+        (r) => r !== 'electron' && !r.startsWith('node:')
+      );
+
+      expect(externalNpmRequires).toEqual([]);
+    }
+  });
+
+  it('7. Renderer index.html must use relative asset paths and never root-absolute paths', () => {
+    const rendererHtmlPath = path.join(desktopRoot, 'dist/renderer/index.html');
+    if (fs.existsSync(rendererHtmlPath)) {
+      const content = fs.readFileSync(rendererHtmlPath, 'utf-8');
+
+      // Assert no root-absolute src="/assets/..." or href="/assets/..."
+      expect(content).not.toMatch(/src=["']\/assets\//);
+      expect(content).not.toMatch(/href=["']\/assets\//);
+
+      // Assert relative paths are used
+      expect(content).toMatch(/src=["']\.\/assets\//);
+      expect(content).toMatch(/href=["']\.\/assets\//);
+    }
+  });
+
+  it('8. Desktop vite.config.ts must specify base: "./" for Electron asset packaging', () => {
+    const viteConfigPath = path.join(desktopRoot, 'vite.config.ts');
+    const content = fs.readFileSync(viteConfigPath, 'utf-8');
+
+    expect(content).toMatch(/base:\s*['"]\.\/['"]/);
+  });
 });
+
