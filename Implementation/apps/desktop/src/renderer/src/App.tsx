@@ -3,7 +3,7 @@ import { Sidebar, Card, Button } from '@jarvis-x/ui';
 import { useAppStore } from './store/useAppStore';
 
 export const App: React.FC = () => {
-  const { activeTab, setActiveTab, systemStatus } = useAppStore();
+  const { activeTab, setActiveTab } = useAppStore();
   const [metrics, setMetrics] = useState<{
     cpuUsagePercentage: number;
     usedMemoryMb: number;

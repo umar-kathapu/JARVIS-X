@@ -7,7 +7,7 @@ export * from './retrieval/hybrid-retriever.js';
 export * from './retrieval/ranking.engine.js';
 export * from './indexing/document-parser.js';
 export * from './indexing/chunker.js';
-export * from './indexing/indexer.pipeline.ts';
+export * from './indexing/indexer.pipeline.js';
 export * from './summarization/summarizer.service.js';
 export * from './profiles/user-profile.service.js';
 export * from './core/memory.engine.js';

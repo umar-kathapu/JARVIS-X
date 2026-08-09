@@ -1,6 +1,6 @@
 import { IPlugin, PluginContext, PluginHealthStatus } from '../types/plugin.types.js';
 import { PluginManifest } from '../types/manifest.types.js';
-import { PluginAPIBridge } from '../api/plugin-api.impl.ts';
+import { PluginAPIBridge } from '../api/plugin-api.impl.js';
 
 export class DiagnosticPlugin implements IPlugin {
   readonly manifest: PluginManifest = {

@@ -19,6 +19,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: jarvis_x_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -28,14 +42,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "4000:4000"
     environment:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://jarvis_admin:jarvis_secure_pass_2026@postgres:5432/jarvis_x_db?schema=public
-      JWT_SECRET: jarvis_super_secret_jwt_key_enterprise_2026_x
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local

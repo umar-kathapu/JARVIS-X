@@ -1,0 +1,20 @@
+# Git Ignore for JARVIS-X Monorepo
+node_modules/
+.pnpm-store/
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+release/
+Implementation.zip
+*.zip
+coverage/
+.nyc_output/
+*.log
+.env
+.env.local
+.env.*.local
+.DS_Store
+Thumbs.db

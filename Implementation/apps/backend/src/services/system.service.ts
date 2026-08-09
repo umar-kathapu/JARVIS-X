@@ -1,6 +1,6 @@
 import os from 'os';
 import { prisma } from '../database/prisma.js';
-import { getRedisClient } from '../database/redis.js';
+import { isRedisConnected } from '../database/redis.js';
 import { appConfig } from '../config/app.config.js';
 
 export class SystemService {
@@ -9,20 +9,18 @@ export class SystemService {
     let redisStatus = false;
 
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      const dbPromise = prisma.$queryRaw`SELECT 1`;
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('DB Timeout')), 80),
+      );
+      await Promise.race([dbPromise, timeoutPromise]);
       dbStatus = true;
     } catch {
       dbStatus = false;
     }
 
-    try {
-      const redis = getRedisClient();
-      if (redis.status === 'ready') {
-        redisStatus = true;
-      }
-    } catch {
-      redisStatus = false;
-    }
+    redisStatus = isRedisConnected();
+
 
     return {
       status: dbStatus ? 'healthy' : 'degraded',

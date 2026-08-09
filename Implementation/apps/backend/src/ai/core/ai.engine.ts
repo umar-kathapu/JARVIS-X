@@ -2,7 +2,7 @@ import { ChatMessage, LLMRequestOptions, LLMResponse, StreamChunk, AIProviderNam
 import { ProviderFactory } from '../providers/provider.factory.js';
 import { ragPipeline } from '../rag/rag.pipeline.js';
 import { taskPlanner } from '../agents/planner.js';
-import { reasoningEngine } from '../agents/reasoning.engine.ts';
+import { reasoningEngine } from '../agents/reasoning.engine.js';
 import { toolRegistry } from '../tools/registry.js';
 import { TerminalTool } from '../tools/builtins/terminal.tool.js';
 import { FilesystemTool } from '../tools/builtins/filesystem.tool.js';

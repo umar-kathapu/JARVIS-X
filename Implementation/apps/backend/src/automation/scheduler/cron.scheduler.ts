@@ -1,9 +1,9 @@
 import { automationRepository } from '../../repositories/automation.repository.js';
-import { jobQueue } from '../queue/job.queue.js';
 import { logger } from '../../utils/logger.js';
 
 export class CronScheduler {
   private isRunning = false;
+  private timer: NodeJS.Timeout | null = null;
 
   async scheduleCron(workflowId: string, cronExpression: string, name: string): Promise<void> {
     await automationRepository.createAutomation(name, cronExpression);
@@ -14,9 +14,20 @@ export class CronScheduler {
     if (this.isRunning) return;
     this.isRunning = true;
 
-    setInterval(async () => {
+    this.timer = setInterval(async () => {
       logger.debug('Polling scheduled cron automation jobs...');
     }, intervalMs);
+
+    logger.info('⏱️ Cron Scheduler service initialized and running.');
+  }
+
+  stopScheduler(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.isRunning = false;
+    logger.info('⏹️ Cron Scheduler service stopped.');
   }
 }
 

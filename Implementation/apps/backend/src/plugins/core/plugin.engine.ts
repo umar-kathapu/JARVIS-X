@@ -1,6 +1,6 @@
 import { IPlugin, PluginContext } from '../types/plugin.types.js';
 import { lifecycleManager } from '../lifecycle/lifecycle.manager.js';
-import { DiagnosticPlugin } from '../sample/diagnostic-plugin.ts';
+import { DiagnosticPlugin } from '../sample/diagnostic-plugin.js';
 import { marketplaceService } from '../marketplace/marketplace.service.js';
 import { logger } from '../../utils/logger.js';
 

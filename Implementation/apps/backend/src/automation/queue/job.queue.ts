@@ -1,4 +1,4 @@
-import { QueueJob, JobPriority, QueueStatus } from '../types/queue.types.js';
+import { QueueJob, JobPriority } from '../types/queue.types.js';
 import { logger } from '../../utils/logger.js';
 
 export class JobQueue {
@@ -51,6 +51,12 @@ export class JobQueue {
 
   getDLQLength(): number {
     return this.deadLetterQueue.length;
+  }
+
+  clear(): void {
+    const pendingCount = this.queue.length;
+    this.queue = [];
+    logger.info(`Cleared background job queue (${pendingCount} pending jobs drained).`);
   }
 }
 

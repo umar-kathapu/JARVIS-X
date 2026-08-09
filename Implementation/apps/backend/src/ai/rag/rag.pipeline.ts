@@ -1,5 +1,5 @@
 import { DocumentChunk, SearchResult, RAGQueryOptions } from '../types/rag.types.js';
-import { openAIEmbeddingProvider } from '../providers/embeddings/openai-embeddings.ts';
+import { openAIEmbeddingProvider } from '../providers/embeddings/openai-embeddings.js';
 
 export class RAGPipeline {
   private chunks: DocumentChunk[] = [];

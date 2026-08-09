@@ -1,7 +1,7 @@
 export class VoiceService {
   private isListening = false;
 
-  startWakeWordListener(onWake: () => void): void {
+  startWakeWordListener(_onWake: () => void): void {
     this.isListening = true;
     // Simulated wake-word listener contract ("Hey JARVIS")
     console.log('[VoiceService] Listening for wake-word "Hey JARVIS"...');

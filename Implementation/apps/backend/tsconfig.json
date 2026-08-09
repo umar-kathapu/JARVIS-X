@@ -6,7 +6,21 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2022",
+    "composite": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "paths": {
+      "@jarvis-x/types": ["../../packages/types/dist/index.d.ts"],
+      "@jarvis-x/shared": ["../../packages/shared/dist/index.d.ts"],
+      "@jarvis-x/utils": ["../../packages/utils/dist/index.d.ts"]
+    },
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*", "tests/**/*"]
+  "include": ["src/**/*"]
 }
+
+
+
+
+
+

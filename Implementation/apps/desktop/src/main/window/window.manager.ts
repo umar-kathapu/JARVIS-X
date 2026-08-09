@@ -6,6 +6,10 @@ export class WindowManager {
   private mainWindow: BrowserWindow | null = null;
   private chatPanelWindow: BrowserWindow | null = null;
 
+  getChatPanelWindow(): BrowserWindow | null {
+    return this.chatPanelWindow;
+  }
+
   createMainWindow(preloadPath: string, devServerUrl?: string): BrowserWindow {
     this.mainWindow = new BrowserWindow({
       width: 1280,
@@ -19,14 +23,15 @@ export class WindowManager {
         preload: preloadPath,
         nodeIntegration: false,
         contextIsolation: true,
-        sandbox: false,
+        sandbox: true,
+        webSecurity: true,
       },
     });
 
     if (devServerUrl) {
       this.mainWindow.loadURL(devServerUrl);
     } else {
-      this.mainWindow.loadFile(path.join(__dirname, '../../renderer/index.html'));
+      this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
     }
 
     this.mainWindow.on('closed', () => {

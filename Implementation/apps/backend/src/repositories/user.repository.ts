@@ -1,4 +1,4 @@
-import { User, Role } from '@prisma/client';
+import { User, UserRoleEnum } from '@prisma/client';
 import { prisma } from '../database/prisma.js';
 
 export class UserRepository {
@@ -16,12 +16,12 @@ export class UserRepository {
     });
   }
 
-  async createUser(data: { email: string; name: string; role?: Role }): Promise<User> {
+  async createUser(data: { email: string; name: string; roleEnum?: UserRoleEnum }): Promise<User> {
     return prisma.user.create({
       data: {
         email: data.email,
         name: data.name,
-        role: data.role ?? 'OPERATOR',
+        roleEnum: data.roleEnum ?? 'OPERATOR',
       },
     });
   }

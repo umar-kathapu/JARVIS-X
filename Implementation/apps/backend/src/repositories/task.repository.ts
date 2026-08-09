@@ -1,13 +1,13 @@
-import { AgentTask, TaskStatus, Priority, Prisma } from '@prisma/client';
+import { Task, TaskStatus, Priority, Prisma } from '@prisma/client';
 import { prisma } from '../database/prisma.js';
 
 export class TaskRepository {
-  async findById(id: string): Promise<AgentTask | null> {
-    return prisma.agentTask.findUnique({ where: { id } });
+  async findById(id: string): Promise<Task | null> {
+    return prisma.task.findUnique({ where: { id } });
   }
 
-  async findAll(): Promise<AgentTask[]> {
-    return prisma.agentTask.findMany({
+  async findAll(): Promise<Task[]> {
+    return prisma.task.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -18,8 +18,8 @@ export class TaskRepository {
     priority?: Priority;
     assignedAgent: string;
     userId?: string;
-  }): Promise<AgentTask> {
-    return prisma.agentTask.create({
+  }): Promise<Task> {
+    return prisma.task.create({
       data: {
         title: data.title,
         description: data.description,
@@ -36,8 +36,8 @@ export class TaskRepository {
     status: TaskStatus,
     resultPayload?: Prisma.InputJsonValue,
     errorMessage?: string,
-  ): Promise<AgentTask> {
-    return prisma.agentTask.update({
+  ): Promise<Task> {
+    return prisma.task.update({
       where: { id },
       data: {
         status,
@@ -49,3 +49,4 @@ export class TaskRepository {
 }
 
 export const taskRepository = new TaskRepository();
+

@@ -10,11 +10,11 @@ export class AuthController {
     const accessToken = request.server.jwt.sign({
       id: user.id,
       email: user.email,
-      role: user.role,
+      role: user.roleEnum,
     });
 
     const refreshToken = request.server.jwt.sign(
-      { id: user.id },
+      { id: user.id, email: user.email, role: user.roleEnum },
       { expiresIn: '7d' },
     );
 
@@ -25,7 +25,7 @@ export class AuthController {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
+          role: user.roleEnum,
         },
         tokens: {
           accessToken,
