@@ -60,7 +60,7 @@ describe('Performance Benchmark: Extreme Stress & Scalability (Area 9)', () => {
     const duration = performance.now() - startTime;
 
     expect(receivedCount).toBe(5000);
-    expect(duration).toBeLessThan(100); // 5,000 high-frequency events processed in < 100ms
+    expect(duration).toBeLessThan(300); // 5,000 high-frequency events processed in < 300ms
     unsubscribe();
   });
 

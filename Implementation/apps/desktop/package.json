@@ -1,9 +1,9 @@
 {
   "name": "@jarvis-x/desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
-  "main": "./dist/main/index.js",
+  "main": "./dist/main/index.cjs",
   "scripts": {
     "dev": "vite",
     "build": "node scripts/build.js",

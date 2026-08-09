@@ -16,7 +16,7 @@ const sharedAliases = {
 async function buildDesktopApp() {
   console.log('🚀 Building JARVIS-X Desktop Application...');
 
-  // 1. Build Main Process (src/main/index.ts -> dist/main/index.js)
+  // 1. Build Main Process (src/main/index.ts -> dist/main/index.cjs)
   console.log('📦 Bundling Electron Main Process...');
   await build({
     configFile: false,
@@ -30,7 +30,7 @@ async function buildDesktopApp() {
       lib: {
         entry: path.resolve(rootDir, 'src/main/index.ts'),
         formats: ['cjs'],
-        fileName: () => 'index.js',
+        fileName: () => 'index.cjs',
       },
       rollupOptions: {
         external: [
@@ -50,7 +50,7 @@ async function buildDesktopApp() {
     },
   });
 
-  // 2. Build Preload Script (src/preload/index.ts -> dist/preload/index.js)
+  // 2. Build Preload Script (src/preload/index.ts -> dist/preload/index.cjs)
   console.log('📦 Bundling Electron Preload Script...');
   await build({
     configFile: false,
@@ -64,7 +64,7 @@ async function buildDesktopApp() {
       lib: {
         entry: path.resolve(rootDir, 'src/preload/index.ts'),
         formats: ['cjs'],
-        fileName: () => 'index.js',
+        fileName: () => 'index.cjs',
       },
       rollupOptions: {
         external: ['electron'],

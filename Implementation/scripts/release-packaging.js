@@ -34,11 +34,11 @@ const metadata = {
   arch: 'x64',
 };
 
-if (metadata.version !== '1.0.0' || metadata.desktopVersion !== '1.0.0' || metadata.backendVersion !== '1.0.0') {
-  console.error('❌ Version mismatch! Version must be 1.0.0 for Release Candidate.');
+if (metadata.version !== '1.0.1' || metadata.desktopVersion !== '1.0.1' || metadata.backendVersion !== '1.0.1') {
+  console.error('❌ Version mismatch! Version must be 1.0.1 for Release Candidate.');
   process.exit(1);
 }
-console.log('✅ Metadata validated: v1.0.0 (JARVIS-X Core Team)\n');
+console.log('✅ Metadata validated: v1.0.1 (JARVIS-X Core Team)\n');
 
 // 2. Locate Electron Runtime Binary Distribution
 console.log('2. Locating Real Electron Runtime Binaries...');
@@ -120,9 +120,9 @@ if (fs.existsSync(resourceDir)) {
 // Create application manifest
 const manifestContent = JSON.stringify({
   productName: 'JARVIS-X',
-  version: '1.0.0',
-  main: 'dist/main/index.js',
-  preload: 'dist/preload/index.js',
+  version: '1.0.1',
+  main: 'dist/main/index.cjs',
+  preload: 'dist/preload/index.cjs',
   renderer: 'dist/renderer/index.html',
   architecture: 'x64',
   targetPlatform: 'win32',
@@ -154,7 +154,7 @@ console.log(`✅ PE Header Validated: DOS Magic 'MZ', PE Signature at offset 0x$
 
 // 5. Create Standalone Release ZIP Archive
 console.log('5. Generating Complete Production Release Archive (ZIP)...');
-const zipFilename = 'JARVIS-X-1.0.0-win-x64.zip';
+const zipFilename = 'JARVIS-X-1.0.1-win-x64.zip';
 const zipPath = path.join(releaseDir, zipFilename);
 
 // Compress win-unpacked directory using PowerShell Compress-Archive

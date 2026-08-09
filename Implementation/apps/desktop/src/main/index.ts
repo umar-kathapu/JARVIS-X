@@ -8,7 +8,7 @@ import { registerIpcHandlers } from './ipc/ipc.handlers.js';
 let mainWindow: BrowserWindow | null = null;
 
 function bootstrapDesktopApp(): void {
-  const preloadPath = path.join(__dirname, '../preload/index.js');
+  const preloadPath = path.join(__dirname, '../preload/index.cjs');
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
   // 1. Create Main Window

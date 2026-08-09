@@ -2,7 +2,7 @@ import { env } from './env.js';
 
 export const appConfig = {
   name: 'JARVIS-X Enterprise Backend API',
-  version: '1.0.0',
+  version: '1.0.1',
   apiVersion: 'v1',
   env: env.NODE_ENV,
   port: env.PORT,

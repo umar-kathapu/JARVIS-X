@@ -99,8 +99,14 @@ describe('T5 Release Candidate: Desktop & Filesystem Validation', () => {
   describe('8. Production Build Packaging & Metadata Validation', () => {
     it('1. Should verify desktop build bundle artifacts exist', () => {
       const desktopDist = path.resolve(__dirname, '../../dist');
-      expect(fs.existsSync(path.join(desktopDist, 'main', 'index.js'))).toBe(true);
-      expect(fs.existsSync(path.join(desktopDist, 'preload', 'index.js'))).toBe(true);
+      expect(
+        fs.existsSync(path.join(desktopDist, 'main', 'index.cjs')) ||
+        fs.existsSync(path.join(desktopDist, 'main', 'index.js'))
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(desktopDist, 'preload', 'index.cjs')) ||
+        fs.existsSync(path.join(desktopDist, 'preload', 'index.js'))
+      ).toBe(true);
       expect(fs.existsSync(path.join(desktopDist, 'renderer', 'index.html'))).toBe(true);
     });
 
@@ -109,7 +115,7 @@ describe('T5 Release Candidate: Desktop & Filesystem Validation', () => {
         fs.readFileSync(path.resolve(__dirname, '../../package.json'), 'utf-8'),
       );
       expect(pkgJson.name).toBe('@jarvis-x/desktop');
-      expect(pkgJson.version).toBe('1.0.0');
+      expect(pkgJson.version).toBe('1.0.1');
     });
   });
 

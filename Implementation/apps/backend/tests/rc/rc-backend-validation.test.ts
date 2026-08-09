@@ -36,7 +36,7 @@ describe('T5 Release Candidate: Backend Subsystem & Security Validation', () => 
       const elapsed = performance.now() - start;
 
       expect(health.status).toBeDefined();
-      expect(health.version).toBe('1.0.0');
+      expect(health.version).toBe('1.0.1');
       expect(elapsed).toBeLessThan(150);
     });
 

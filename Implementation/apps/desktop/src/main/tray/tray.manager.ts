@@ -1,5 +1,6 @@
 import { Tray, Menu, app, BrowserWindow } from 'electron';
 import path from 'path';
+import fs from 'fs';
 
 export class TrayManager {
   private tray: Tray | null = null;
@@ -8,9 +9,26 @@ export class TrayManager {
     if (this.tray) return;
 
     // Standard fallback tray icon path
-    const iconPath = path.join(__dirname, '../../resources/tray-icon.png');
-    this.tray = new Tray(iconPath);
-    this.tray.setToolTip('JARVIS-X AI Operating System');
+    const candidatePaths = [
+      path.join(__dirname, '../resources/icon.png'),
+      path.join(__dirname, '../../resources/icon.png'),
+      path.join(__dirname, '../../resources/tray-icon.png'),
+    ];
+    let iconPath = candidatePaths[0];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        iconPath = p;
+        break;
+      }
+    }
+
+    try {
+      this.tray = new Tray(iconPath);
+      this.tray.setToolTip('JARVIS-X AI Operating System');
+    } catch {
+      // Graceful fallback if no tray support in headless test env
+      return;
+    }
 
     const contextMenu = Menu.buildFromTemplate([
       {
