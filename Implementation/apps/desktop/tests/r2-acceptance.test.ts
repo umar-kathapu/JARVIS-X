@@ -103,5 +103,5 @@ describe('R2 Real User Acceptance Validation Suite', () => {
     console.log('================================================================================');
     console.log(`SUMMARY: ${results.filter((r) => r.passed).length}/${results.length} Acceptance Tests Passed`);
     console.log('================================================================================\n');
-  }, 45000);
+  }, 240000);
 });

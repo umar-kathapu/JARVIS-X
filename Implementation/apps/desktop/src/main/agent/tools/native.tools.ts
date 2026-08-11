@@ -16,51 +16,130 @@ export class ScreenCaptureTool implements IAgentTool {
   };
 
   async execute(args: Record<string, unknown>): Promise<ToolExecutionResult> {
-    const result = await screenService.capturePrimaryScreen();
-    if (!result) {
+    try {
+      const result = await screenService.capturePrimaryScreen();
+      if (!result) {
+        return {
+          success: false,
+          status: 'FAILED',
+          tool: this.definition.name,
+          action: 'CAPTURE_SCREEN',
+          parameters: args,
+          output: 'Step execution failed on screen.capture: Primary display screenshot capture returned null.',
+          error: 'CaptureFailed',
+          evidence: { verified: false, verificationDetails: 'Screen capture failed or file write was unverified' },
+        };
+      }
+
+      const verified = screenService.isValidPngFile(result.filePath);
+      if (!verified) {
+        return {
+          success: false,
+          status: 'FAILED',
+          tool: this.definition.name,
+          action: 'CAPTURE_SCREEN',
+          parameters: args,
+          output: `Step execution failed on screen.capture: PNG signature validation failed for "${result.filePath}".`,
+          error: 'InvalidPngSignature',
+          evidence: { verified: false, verificationDetails: 'File is empty or lacks valid PNG header' },
+        };
+      }
+
+      return {
+        success: true,
+        status: 'COMPLETED',
+        tool: this.definition.name,
+        action: 'CAPTURE_SCREEN',
+        parameters: args,
+        output: `SCREENSHOT CAPTURED\nPath: ${result.filePath}\nSize: ${result.sizeBytes} bytes\nResolution: ${result.width}x${result.height}`,
+        evidence: {
+          resolvedPath: result.filePath,
+          filename: result.filename,
+          dimensions: { width: result.width, height: result.height },
+          fileSizeBytes: result.sizeBytes,
+          dataUrl: result.dataUrl,
+          timestamp: result.timestamp,
+          verified: true,
+          verificationDetails: `Valid PNG verified on disk at "${result.filePath}" (${result.sizeBytes} bytes, ${result.width}x${result.height})`,
+        },
+      };
+    } catch (err: any) {
       return {
         success: false,
         status: 'FAILED',
         tool: this.definition.name,
         action: 'CAPTURE_SCREEN',
         parameters: args,
-        output: 'Failed to capture primary display screenshot.',
-        error: 'CaptureFailed',
-        evidence: { verified: false, verificationDetails: 'Screen capture failed or file write was unverified' },
+        output: `Step execution failed on screen.capture: ${err?.message || 'Screen capture error'}`,
+        error: err?.message || 'CaptureFailed',
+        evidence: { verified: false, verificationDetails: `OS Error: ${err?.message || 'Unknown error'}` },
       };
     }
-
-    const verified = fs.existsSync(result.filePath) && fs.statSync(result.filePath).size > 0;
-    return {
-      success: verified,
-      status: verified ? 'COMPLETED' : 'FAILED',
-      tool: this.definition.name,
-      action: 'CAPTURE_SCREEN',
-      parameters: args,
-      output: `Screenshot captured and saved to "${result.filePath}" (${result.width}x${result.height}, ${(result.sizeBytes / 1024).toFixed(1)} KB)`,
-      evidence: {
-        resolvedPath: result.filePath,
-        dimensions: { width: result.width, height: result.height },
-        fileSizeBytes: result.sizeBytes,
-        dataUrl: result.dataUrl,
-        verified,
-        verificationDetails: `PNG file verified on disk at "${result.filePath}" (${result.sizeBytes} bytes)`,
-      },
-    };
   }
 
   async verify(result: ToolExecutionResult): Promise<boolean> {
     if (result.evidence?.resolvedPath) {
-      try {
-        return (
-          fs.existsSync(result.evidence.resolvedPath) &&
-          fs.statSync(result.evidence.resolvedPath).size > 0
-        );
-      } catch {
-        return false;
-      }
+      return screenService.isValidPngFile(result.evidence.resolvedPath);
     }
     return result.success;
+  }
+}
+
+export class ScreenVerifyTool implements IAgentTool {
+  readonly definition: ToolDefinition = {
+    name: 'screen.verify',
+    description: 'Verifies that captured screenshot file exists on disk with valid PNG header',
+    category: 'SCREEN',
+    parameters: [
+      { name: 'filePath', type: 'string', description: 'Path to screenshot file', required: true },
+    ],
+    securityLevel: 'SAFE',
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolExecutionResult> {
+    const filePath = String(args.resolvedPath || args.filePath || '').trim();
+    if (!filePath) {
+      return {
+        success: false,
+        status: 'FAILED',
+        tool: this.definition.name,
+        action: 'VERIFY_SCREENSHOT',
+        parameters: args,
+        output: 'No screenshot file path provided to verify.',
+        error: 'MissingPath',
+        evidence: { verified: false, verificationDetails: 'Missing filePath' },
+      };
+    }
+
+    const isValid = screenService.isValidPngFile(filePath);
+    if (!isValid) {
+      return {
+        success: false,
+        status: 'FAILED',
+        tool: this.definition.name,
+        action: 'VERIFY_SCREENSHOT',
+        parameters: args,
+        output: `Screenshot file verification failed for "${filePath}".`,
+        error: 'InvalidPngFile',
+        evidence: { resolvedPath: filePath, verified: false, verificationDetails: 'File does not exist or has invalid PNG signature' },
+      };
+    }
+
+    const stat = fs.statSync(filePath);
+    return {
+      success: true,
+      status: 'COMPLETED',
+      tool: this.definition.name,
+      action: 'VERIFY_SCREENSHOT',
+      parameters: { filePath },
+      output: `Screenshot verified on disk at "${filePath}" (${stat.size} bytes)`,
+      evidence: {
+        resolvedPath: filePath,
+        fileSizeBytes: stat.size,
+        verified: true,
+        verificationDetails: `Confirmed valid PNG file on disk (${stat.size} bytes)`,
+      },
+    };
   }
 }
 

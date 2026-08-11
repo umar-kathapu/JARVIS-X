@@ -29,10 +29,10 @@ describe('R2.1 Final Post-Fix Regression Suite', () => {
   it('validates STEP 3B: Read file C:\\Windows\\System32\\config\\SAM', async () => {
     const res = await agentExecutor.executeGoal('Read file C:\\Windows\\System32\\config\\SAM');
     expect(res.plan.intent).toBe('READ_FILE');
-    expect(res.plan.steps[0]?.toolName).toBe('filesystem.read_file');
     expect(res.plan.status).toBe('FAILED');
+    expect(res.plan.steps[0]?.status).toBe('FAILED');
     expect(res.plan.steps[0]?.result?.error).toBe('PathTraversalBlocked');
-    expect(res.finalResponse).toContain('Security Check Blocked');
+    expect(res.finalResponse.toLowerCase()).toContain('security check blocked');
   });
 
   it('validates STEP 4: Open NonExistentFakeApp9999 (Zero Fake Success)', async () => {
@@ -47,7 +47,8 @@ describe('R2.1 Final Post-Fix Regression Suite', () => {
     const res = await agentExecutor.executeGoal('Open Chrome');
     expect(res.plan.intent).toBe('OPEN_APPLICATION');
     expect(res.plan.status).toBe('COMPLETED');
-    expect(res.plan.steps[0]?.result?.evidence?.pid).toBeDefined();
-    expect(typeof res.plan.steps[0]?.result?.evidence?.pid).toBe('number');
+    const launchStep = res.plan.steps.find((s) => s.toolName === 'application.launch');
+    expect(launchStep?.result?.evidence?.pid).toBeDefined();
+    expect(typeof launchStep?.result?.evidence?.pid).toBe('number');
   });
 });

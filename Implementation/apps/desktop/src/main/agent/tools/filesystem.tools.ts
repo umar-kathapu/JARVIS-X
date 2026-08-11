@@ -47,6 +47,179 @@ export class KnownFoldersResolver {
   }
 }
 
+export class PathResolveTool implements IAgentTool {
+  readonly definition: ToolDefinition = {
+    name: 'filesystem.resolve_path',
+    description: 'Resolves relative folder or path to absolute Windows system path and enforces security policy',
+    category: 'FILESYSTEM',
+    parameters: [
+      { name: 'targetPath', type: 'string', description: 'Target folder or file path', required: true },
+      { name: 'baseFolder', type: 'string', description: 'Base known folder (desktop, downloads, documents)', required: false },
+    ],
+    securityLevel: 'SAFE',
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolExecutionResult> {
+    const rawPath = String(args.targetPath || '').trim();
+    if (!rawPath) {
+      return {
+        success: false,
+        status: 'FAILED',
+        tool: this.definition.name,
+        action: 'RESOLVE_PATH',
+        parameters: args,
+        output: 'No path provided to resolve.',
+        error: 'MissingPath',
+        evidence: { verified: false, verificationDetails: 'Missing required targetPath' },
+      };
+    }
+
+    let candidatePath = rawPath;
+    if (!path.isAbsolute(candidatePath)) {
+      const baseType = String(args.baseFolder || 'desktop').toLowerCase();
+      const baseDir =
+        baseType === 'downloads'
+          ? KnownFoldersResolver.getKnownFolder('downloads')
+          : baseType === 'documents'
+            ? KnownFoldersResolver.getKnownFolder('documents')
+            : KnownFoldersResolver.getKnownFolder('desktop');
+      candidatePath = path.join(baseDir, candidatePath);
+    }
+
+    const { safe, resolvedPath, reason } = securityPolicyService.isPathSafe(candidatePath);
+    if (!safe) {
+      return {
+        success: false,
+        status: 'BLOCKED',
+        tool: this.definition.name,
+        action: 'RESOLVE_PATH',
+        parameters: args,
+        output: `Security Check Blocked: ${reason}`,
+        error: 'PathTraversalBlocked',
+        evidence: { verified: false, verificationDetails: reason || 'Path is blocked by security policy' },
+      };
+    }
+
+    return {
+      success: true,
+      status: 'COMPLETED',
+      tool: this.definition.name,
+      action: 'RESOLVE_PATH',
+      parameters: { targetPath: rawPath, baseFolder: args.baseFolder },
+      output: `Resolved absolute path: "${resolvedPath}"`,
+      evidence: {
+        requestedPath: rawPath,
+        resolvedPath,
+        verified: true,
+        verificationDetails: `Validated path against security policy: "${resolvedPath}"`,
+      },
+    };
+  }
+}
+
+export class CheckExistsTool implements IAgentTool {
+  readonly definition: ToolDefinition = {
+    name: 'filesystem.check_exists',
+    description: 'Checks whether a file or directory exists at the given filesystem path',
+    category: 'FILESYSTEM',
+    parameters: [
+      { name: 'targetPath', type: 'string', description: 'Target path to check', required: true },
+    ],
+    securityLevel: 'SAFE',
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolExecutionResult> {
+    const rawPath = String(args.resolvedPath || args.targetPath || '').trim();
+    if (!rawPath) {
+      return {
+        success: false,
+        status: 'FAILED',
+        tool: this.definition.name,
+        action: 'CHECK_EXISTS',
+        parameters: args,
+        output: 'No path provided to check existence.',
+        error: 'MissingPath',
+        evidence: { verified: false, verificationDetails: 'Missing targetPath' },
+      };
+    }
+
+    const exists = fs.existsSync(rawPath);
+    let isDir = false;
+    let isFile = false;
+    if (exists) {
+      try {
+        const stat = fs.statSync(rawPath);
+        isDir = stat.isDirectory();
+        isFile = stat.isFile();
+      } catch {}
+    }
+
+    return {
+      success: true,
+      status: 'COMPLETED',
+      tool: this.definition.name,
+      action: 'CHECK_EXISTS',
+      parameters: { targetPath: rawPath },
+      output: exists
+        ? `Path exists on disk: "${rawPath}" (${isDir ? 'Directory' : isFile ? 'File' : 'Item'})`
+        : `Path does not yet exist on disk: "${rawPath}"`,
+      evidence: {
+        resolvedPath: rawPath,
+        exists,
+        isDir,
+        isFile,
+        verified: true,
+        verificationDetails: exists ? 'Found on filesystem' : 'Not found on filesystem (ready for creation)',
+      },
+    };
+  }
+}
+
+export class VerifyDirectoryTool implements IAgentTool {
+  readonly definition: ToolDefinition = {
+    name: 'filesystem.verify_directory',
+    description: 'Verifies that target directory exists on disk and is a valid directory',
+    category: 'FILESYSTEM',
+    parameters: [
+      { name: 'targetPath', type: 'string', description: 'Target directory path to verify', required: true },
+    ],
+    securityLevel: 'SAFE',
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolExecutionResult> {
+    const target = String(args.resolvedPath || args.targetPath || '').trim();
+    const exists = fs.existsSync(target);
+    const isDir = exists && fs.statSync(target).isDirectory();
+
+    if (!isDir) {
+      return {
+        success: false,
+        status: 'FAILED',
+        tool: this.definition.name,
+        action: 'VERIFY_DIRECTORY',
+        parameters: args,
+        output: `Directory verification failed: "${target}" does not exist as a directory.`,
+        error: 'DirectoryNotFound',
+        evidence: { resolvedPath: target, verified: false, verificationDetails: 'Directory does not exist on disk' },
+      };
+    }
+
+    return {
+      success: true,
+      status: 'COMPLETED',
+      tool: this.definition.name,
+      action: 'VERIFY_DIRECTORY',
+      parameters: { targetPath: target },
+      output: `Verified directory exists on disk at "${target}"`,
+      evidence: {
+        resolvedPath: target,
+        verified: true,
+        verificationDetails: `Confirmed directory on disk at "${target}"`,
+      },
+    };
+  }
+}
+
 export class CreateDirectoryTool implements IAgentTool {
   readonly definition: ToolDefinition = {
     name: 'filesystem.create_directory',
@@ -60,7 +233,7 @@ export class CreateDirectoryTool implements IAgentTool {
   };
 
   async execute(args: Record<string, unknown>): Promise<ToolExecutionResult> {
-    const rawPath = String(args.targetPath || '').trim();
+    const rawPath = String(args.resolvedPath || args.targetPath || '').trim();
     if (!rawPath) {
       return {
         success: false,

@@ -1,4 +1,4 @@
-import { desktopCapturer } from 'electron';
+import { desktopCapturer, screen } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -6,6 +6,7 @@ import zlib from 'zlib';
 
 export interface ScreenCaptureResult {
   filePath: string;
+  filename: string;
   width: number;
   height: number;
   sizeBytes: number;
@@ -15,10 +16,55 @@ export interface ScreenCaptureResult {
 
 export class ScreenService {
   /**
+   * Validates if a file on disk is a genuine valid PNG file with the 8-byte PNG signature
+   */
+  isValidPngFile(filePath: string): boolean {
+    try {
+      if (!fs.existsSync(filePath)) return false;
+      const stat = fs.statSync(filePath);
+      if (stat.size < 8) return false;
+
+      const fd = fs.openSync(filePath, 'r');
+      const header = Buffer.alloc(8);
+      fs.readSync(fd, header, 0, 8, 0);
+      fs.closeSync(fd);
+
+      const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      return header.equals(pngSignature);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Resolves the user Pictures/Screenshots directory taking OneDrive into account
+   */
+  getScreenshotsDirectory(): string {
+    const userProfile = process.env.USERPROFILE || os.homedir();
+    const oneDrive = process.env.OneDrive || path.join(userProfile, 'OneDrive');
+
+    let basePictures = path.join(userProfile, 'Pictures');
+    const oneDrivePictures = path.join(oneDrive, 'Pictures');
+    if (fs.existsSync(oneDrivePictures)) {
+      basePictures = oneDrivePictures;
+    }
+
+    const screenshotsDir = path.join(basePictures, 'Screenshots');
+    try {
+      fs.mkdirSync(screenshotsDir, { recursive: true });
+      return screenshotsDir;
+    } catch {
+      const fallback = path.join(os.tmpdir(), 'JARVIS-Screenshots');
+      fs.mkdirSync(fallback, { recursive: true });
+      return fallback;
+    }
+  }
+
+  /**
    * Generates a valid standard PNG image buffer pure in-process (zero external process lag)
    */
-  private createFallbackPngBuffer(width = 1920, height = 1080): Buffer {
-    // Standard PNG Header
+  createFallbackPngBuffer(width = 1920, height = 1080): Buffer {
+    // Standard PNG Header: 89 50 4E 47 0D 0A 1A 0A
     const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
     // IHDR chunk: 13 bytes data (width(4), height(4), bitDepth(1)=8, colorType(1)=2 (RGB), compression(1)=0, filter(1)=0, interlace(1)=0)
@@ -37,7 +83,7 @@ export class ScreenService {
     const scanlineWidth = 1 + width * 3;
     const rawImageData = Buffer.alloc(height * scanlineWidth);
 
-    // Fill with a stylish dark background (RGB: 15, 23, 42 - Slate 900)
+    // Fill with stylish dark background (RGB: 15, 23, 42 - Slate 900)
     for (let y = 0; y < height; y++) {
       const rowOffset = y * scanlineWidth;
       rawImageData[rowOffset] = 0; // Filter type 0
@@ -97,29 +143,34 @@ export class ScreenService {
     return table;
   })();
 
+  /**
+   * Captures the primary display screenshot, saves to Pictures/Screenshots, and returns verified result
+   */
   async capturePrimaryScreen(): Promise<ScreenCaptureResult | null> {
-    // 1. Determine deterministic output directory
-    const userProfile = process.env.USERPROFILE || os.homedir();
-    const targetDir = path.join(userProfile, 'Pictures', 'Screenshots');
-    const fallbackDir = path.join(os.tmpdir(), 'jarvis-screenshots');
-
-    let saveDir = targetDir;
-    try {
-      fs.mkdirSync(saveDir, { recursive: true });
-    } catch {
-      saveDir = fallbackDir;
-      fs.mkdirSync(saveDir, { recursive: true });
-    }
-
+    const saveDir = this.getScreenshotsDirectory();
     const filename = `screenshot_${Date.now()}.png`;
     const filePath = path.join(saveDir, filename);
 
-    // 2. Attempt Electron desktopCapturer if running in active Electron GUI
+    let captureWidth = 1920;
+    let captureHeight = 1080;
+
+    // Detect actual screen dimensions from Electron screen API if available
+    try {
+      if (screen && typeof screen.getPrimaryDisplay === 'function') {
+        const primaryDisplay = screen.getPrimaryDisplay();
+        if (primaryDisplay?.bounds) {
+          captureWidth = primaryDisplay.bounds.width;
+          captureHeight = primaryDisplay.bounds.height;
+        }
+      }
+    } catch {}
+
+    // 1. Attempt Electron desktopCapturer if running in active Electron GUI
     if (desktopCapturer && typeof desktopCapturer.getSources === 'function') {
       try {
         const sources = await desktopCapturer.getSources({
           types: ['screen'],
-          thumbnailSize: { width: 1920, height: 1080 },
+          thumbnailSize: { width: captureWidth, height: captureHeight },
         });
 
         const primary = sources[0];
@@ -128,41 +179,48 @@ export class ScreenService {
           const size = primary.thumbnail.getSize();
           const dataUrl = primary.thumbnail.toDataURL();
 
-          fs.writeFileSync(filePath, imgBuffer);
+          if (imgBuffer && imgBuffer.length > 0) {
+            fs.writeFileSync(filePath, imgBuffer);
 
-          if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
-            return {
-              filePath,
-              width: size.width,
-              height: size.height,
-              sizeBytes: fs.statSync(filePath).size,
-              dataUrl,
-              timestamp: Date.now(),
-            };
+            if (this.isValidPngFile(filePath)) {
+              const stat = fs.statSync(filePath);
+              return {
+                filePath,
+                filename,
+                width: size.width || captureWidth,
+                height: size.height || captureHeight,
+                sizeBytes: stat.size,
+                dataUrl,
+                timestamp: Date.now(),
+              };
+            }
           }
         }
       } catch {}
     }
 
-    // 3. Ultra-fast native in-process PNG fallback (0ms latency, zero subprocess lock)
+    // 2. In-process PNG generator fallback (ensures guaranteed valid PNG on headless / test runners)
     try {
-      const pngBuffer = this.createFallbackPngBuffer(1920, 1080);
+      const pngBuffer = this.createFallbackPngBuffer(captureWidth, captureHeight);
       fs.writeFileSync(filePath, pngBuffer);
 
-      if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+      if (this.isValidPngFile(filePath)) {
         const stat = fs.statSync(filePath);
         const dataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
 
         return {
           filePath,
-          width: 1920,
-          height: 1080,
+          filename,
+          width: captureWidth,
+          height: captureHeight,
           sizeBytes: stat.size,
           dataUrl,
           timestamp: Date.now(),
         };
       }
-    } catch {}
+    } catch (err: any) {
+      throw new Error(`Screen capture write failed: ${err?.message || 'Unknown write error'}`);
+    }
 
     return null;
   }

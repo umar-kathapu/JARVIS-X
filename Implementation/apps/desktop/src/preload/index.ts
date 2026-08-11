@@ -18,6 +18,7 @@ export const electronAPI = {
     return ipcRenderer.invoke('EXECUTE_TERMINAL', payload);
   },
   captureScreen: () => ipcRenderer.invoke('CAPTURE_SCREEN'),
+  openPath: (targetPath: string) => ipcRenderer.invoke('OPEN_PATH', String(targetPath || '')),
   executeAgentGoal: (goal: string) =>
     ipcRenderer.invoke('AGENT_EXECUTE_GOAL', { goal: String(goal || '') }),
   getAgentTools: () => ipcRenderer.invoke('AGENT_GET_TOOLS'),

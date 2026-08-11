@@ -44,17 +44,28 @@ export class SecurityPolicyService {
       return 'BLOCKED';
     }
 
-    // 2. Destructive Filesystem operations require user confirmation
+    // 2. Check path safety for filesystem operations
+    if (toolName.startsWith('filesystem.')) {
+      const pathToCheck = String(args.filePath || args.targetPath || args.resolvedPath || '').trim();
+      if (pathToCheck) {
+        const pathResult = this.isPathSafe(pathToCheck);
+        if (!pathResult.safe) {
+          return 'BLOCKED';
+        }
+      }
+    }
+
+    // 3. Destructive Filesystem operations require user confirmation
     if (toolName === 'filesystem.delete_file' || toolName === 'filesystem.delete_directory') {
       return 'CONFIRM_REQUIRED';
     }
 
-    // 3. Sensitive operations
+    // 4. Sensitive operations
     if (toolName === 'system.shutdown' || toolName === 'system.restart') {
       return 'CONFIRM_REQUIRED';
     }
 
-    // 4. Safe operations
+    // 5. Safe operations
     return 'SAFE';
   }
 

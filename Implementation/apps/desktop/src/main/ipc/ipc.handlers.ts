@@ -1,4 +1,5 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, shell } from 'electron';
+import fs from 'fs';
 import { z } from 'zod';
 import { windowManager } from '../window/window.manager.js';
 import { systemInfoService } from '../system/system-info.service.js';
@@ -24,6 +25,7 @@ const ExecuteTerminalSchema = z.object({
 const AgentExecuteGoalSchema = z.object({
   goal: z.string().min(1).max(500),
 });
+const OpenPathSchema = z.string().min(1).max(1000);
 
 export function registerIpcHandlers(): void {
   // 1. System Metrics & Status
@@ -111,5 +113,20 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('AGENT_GET_TOOLS', async (event) => {
     if (!event.senderFrame) return [];
     return toolRegistry.getAllDefinitions();
+  });
+
+  // 9. Open File / Path in OS Default Handler
+  ipcMain.handle('OPEN_PATH', async (event, targetPath: unknown) => {
+    if (!event.senderFrame) return { success: false, error: 'Invalid frame' };
+    try {
+      const validatedPath = OpenPathSchema.parse(targetPath);
+      if (!fs.existsSync(validatedPath)) {
+        return { success: false, error: `File does not exist: ${validatedPath}` };
+      }
+      const err = await shell.openPath(validatedPath);
+      return { success: err === '', error: err || undefined };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   });
 }

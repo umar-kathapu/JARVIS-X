@@ -1,56 +1,174 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Input } from '@jarvis-x/ui';
-
-interface PlanStepUI {
-  stepNumber: number;
-  description: string;
-  toolName: string;
-  securityLevel: 'SAFE' | 'CONFIRM_REQUIRED' | 'SENSITIVE' | 'BLOCKED';
-  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'BLOCKED';
-  durationMs?: number;
-  output?: string;
-  evidence?: {
-    verified?: boolean;
-    verificationDetails?: string;
-    resolvedPath?: string;
-    requestedPath?: string;
-    url?: string;
-    pid?: number;
-    processName?: string;
-    method?: 'APPLICATION_LAUNCH' | 'URI_LAUNCH' | 'BROWSER_FALLBACK';
-    fileCount?: number;
-    fileSizeBytes?: number;
-    dimensions?: { width: number; height: number };
-    dataUrl?: string;
-    exitCode?: number;
-    [key: string]: unknown;
-  };
-}
+import { AgentExecutionPlan, PlanStep } from '../../../../main/agent/agent.types.js';
+import { WorkflowInstance } from '../../../../main/agent/workflow.types.js';
+import { ExecutionStepResult } from '../agent/ExecutionStepResult.js';
+import { AgentFinalResult } from '../agent/AgentFinalResult.js';
+import { WorkflowExecutionPanel } from '../agent/WorkflowExecutionPanel.js';
 
 export const AiAgentsPage: React.FC = () => {
-  const [goal, setGoal] = useState('Open Chrome and navigate to github.com');
+  const [goal, setGoal] = useState('Prepare my desktop for coding');
   const [isExecuting, setIsExecuting] = useState(false);
-  const [activeIntent, setActiveIntent] = useState<string>('OPEN_URL');
-  const [steps, setSteps] = useState<PlanStepUI[]>([
-    {
-      stepNumber: 1,
-      description: 'Open browser and navigate to https://github.com',
-      toolName: 'browser.open_url',
-      securityLevel: 'SAFE',
-      status: 'COMPLETED',
-      durationMs: 38,
-      output: 'System browser opened and navigated to https://github.com',
-      evidence: {
-        url: 'https://github.com',
+  const [activeTab, setActiveTab] = useState<'workflow' | 'steps'>('workflow');
+  const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowInstance>({
+    workflowId: 'initial_wf',
+    originalGoal: 'Prepare my desktop for coding',
+    intent: 'COMPOSITE_COMMAND',
+    status: 'COMPLETED',
+    createdAt: Date.now(),
+    steps: [
+      {
+        stepId: 'step_1',
+        description: 'Check whether Git version control is installed',
+        intent: 'CHECK_SOFTWARE',
+        tool: 'system.check_software',
+        input: { softwareName: 'git' },
+        dependencies: [],
+        securityLevel: 'SAFE',
+        status: 'COMPLETED',
+        duration: 42,
+        output: 'Software "git" IS installed: git version 2.52.0.windows.1',
+        verified: true,
+        verificationDetails: 'Detected git version git version 2.52.0.windows.1',
+        evidence: { verified: true, verificationDetails: 'Detected git version git version 2.52.0.windows.1' },
+      },
+      {
+        stepId: 'step_2',
+        description: 'Check whether Python runtime is installed',
+        intent: 'CHECK_SOFTWARE',
+        tool: 'system.check_software',
+        input: { softwareName: 'python' },
+        dependencies: [],
+        securityLevel: 'SAFE',
+        status: 'COMPLETED',
+        duration: 38,
+        output: 'Software "python" IS installed: Python 3.14.0',
+        verified: true,
+        verificationDetails: 'Detected python version Python 3.14.0',
+        evidence: { verified: true, verificationDetails: 'Detected python version Python 3.14.0' },
+      },
+      {
+        stepId: 'step_3',
+        description: 'Resolve executable path for VS Code',
+        intent: 'OPEN_APPLICATION',
+        tool: 'application.resolve',
+        input: { appName: 'VS Code' },
+        dependencies: [],
+        securityLevel: 'SAFE',
+        status: 'COMPLETED',
+        duration: 3,
+        output: 'Resolved "VS Code" executable: "C:\\Program Files\\Microsoft VS Code\\Code.exe"',
+        verified: true,
+        verificationDetails: 'Found via KNOWN_PATH (APPLICATION_LAUNCH)',
+        evidence: {
+          resolvedPath: 'C:\\Program Files\\Microsoft VS Code\\Code.exe',
+          verified: true,
+          verificationDetails: 'Found via KNOWN_PATH (APPLICATION_LAUNCH)',
+        },
+      },
+      {
+        stepId: 'step_4',
+        description: 'Launch VS Code development editor',
+        intent: 'OPEN_APPLICATION',
+        tool: 'application.launch',
+        input: { appName: 'VS Code' },
+        dependencies: ['step_3'],
+        securityLevel: 'SAFE',
+        status: 'COMPLETED',
+        duration: 195,
+        output: 'Application "VS Code" started successfully (PID: 26132)',
+        verified: true,
+        verificationDetails: 'Process verified active with OS PID 26132',
+        evidence: {
+          pid: 26132,
+          resolvedPath: 'C:\\Program Files\\Microsoft VS Code\\Code.exe',
+          verified: true,
+          verificationDetails: 'Process verified active with OS PID 26132',
+        },
+      },
+      {
+        stepId: 'step_5',
+        description: 'Verify workspace folder exists on disk',
+        intent: 'CREATE_DIRECTORY',
+        tool: 'filesystem.verify_directory',
+        input: { targetPath: 'JARVIS-Coding-Workspace' },
+        dependencies: ['step_4'],
+        securityLevel: 'SAFE',
+        status: 'COMPLETED',
+        duration: 1,
+        output: 'Verified directory exists on disk at "C:\\Users\\Admin\\OneDrive\\Desktop\\JARVIS-Coding-Workspace"',
+        verified: true,
+        verificationDetails: 'Confirmed directory on disk',
+        evidence: {
+          resolvedPath: 'C:\\Users\\Admin\\OneDrive\\Desktop\\JARVIS-Coding-Workspace',
+          verified: true,
+          verificationDetails: 'Confirmed directory on disk',
+        },
+      },
+    ],
+    finalResult: {
+      summary: 'WORKFLOW COMPLETED: All 5 step(s) executed and verified successfully on system.',
+      totalSteps: 5,
+      completedSteps: 5,
+      failedSteps: 0,
+      blockedSteps: 0,
+      skippedSteps: 0,
+      cancelledSteps: 0,
+      evidence: [
+        '✓ Detected git version git version 2.52.0.windows.1',
+        '✓ Detected python version Python 3.14.0',
+        '✓ Launch VS Code development editor (PID: 26132)',
+        '✓ Verified folder on disk at "C:\\Users\\Admin\\OneDrive\\Desktop\\JARVIS-Coding-Workspace"',
+      ],
+      isSuccess: true,
+    },
+  });
+  const [currentPlan, setCurrentPlan] = useState<AgentExecutionPlan>({
+    goalId: 'initial',
+    rawGoal: 'Open Chrome and navigate to github.com',
+    intent: 'OPEN_URL',
+    status: 'COMPLETED',
+    createdAt: Date.now(),
+    steps: [
+      {
+        stepId: 'step_1',
+        stepNumber: 1,
+        description: 'Open browser and navigate to https://github.com',
+        tool: 'browser.open_url',
+        toolName: 'browser.open_url',
+        toolArgs: { url: 'https://github.com' },
+        input: { url: 'https://github.com' },
+        securityLevel: 'SAFE',
+        status: 'COMPLETED',
+        duration: 38,
+        durationMs: 38,
         verified: true,
         verificationDetails: 'Dispatched URL to OS Default Web Browser (https://github.com)',
+        evidence: {
+          url: 'https://github.com',
+          verified: true,
+          verificationDetails: 'Dispatched URL to OS Default Web Browser (https://github.com)',
+        },
+        result: {
+          success: true,
+          status: 'COMPLETED',
+          tool: 'browser.open_url',
+          action: 'OPEN_URL',
+          parameters: { url: 'https://github.com' },
+          output: 'System browser opened and navigated to https://github.com',
+          evidence: {
+            url: 'https://github.com',
+            verified: true,
+            verificationDetails: 'Dispatched URL to OS Default Web Browser (https://github.com)',
+          },
+        },
       },
-    },
-  ]);
+    ],
+  });
   const [executionOutput, setExecutionOutput] = useState<string>(
     'System browser opened and navigated to https://github.com',
   );
-  const [availableToolsCount, setAvailableToolsCount] = useState<number>(15);
+  const [availableToolsCount, setAvailableToolsCount] = useState<number>(18);
 
   useEffect(() => {
     if ((window as any).electronAPI?.getAgentTools) {
@@ -63,20 +181,17 @@ export const AiAgentsPage: React.FC = () => {
   }, []);
 
   const presetGoals = [
-    'Open Chrome and navigate to github.com',
-    'Open VS Code',
-    'Open Instagram',
-    'Open WhatsApp',
-    'Open Antigravity',
-    'Open Notepad',
-    'Create a folder called JARVIS-Test on my Desktop',
+    'Prepare my desktop for coding',
+    'Check whether Git and Python are installed, launch VS Code, and show me the system health',
+    'Take a screenshot, create a folder called JARVIS-Screenshots on my Desktop, and save the screenshot there',
+    'Open Chrome and search for Python machine learning tutorials',
+    'Check whether Git and Python are installed',
     'Take a screenshot',
     'Run system diagnostics',
-    'Show my system memory',
-    'Find all PDF files in my Downloads folder',
-    'Check whether Node.js is installed',
-    'Check whether Git is installed',
-    'Run git status in the JARVIS-X project',
+    'Find PDF files in Downloads',
+    'Open FakeUnknownApp9999',
+    'Open VS Code',
+    'Open Chrome',
   ];
 
   const handleExecuteGoal = async (targetGoal: string) => {
@@ -90,279 +205,207 @@ export const AiAgentsPage: React.FC = () => {
       try {
         const res = await (window as any).electronAPI.executeAgentGoal(targetGoal);
         if (res && res.plan) {
-          setActiveIntent(res.plan.intent);
-          const mappedSteps: PlanStepUI[] = (res.plan.steps || []).map((s: any) => ({
-            stepNumber: s.stepNumber,
+          setCurrentPlan(res.plan);
+          setExecutionOutput(res.finalResponse || 'Execution finished.');
+
+          // Map plan to workflow instance for WorkflowExecutionPanel
+          const wfSteps = (res.plan.steps || []).map((s: any, idx: number) => ({
+            stepId: s.stepId || `step_${idx + 1}`,
             description: s.description,
-            toolName: s.toolName,
+            intent: res.plan.intent,
+            tool: s.tool || s.toolName,
+            input: s.input || s.toolArgs || {},
+            dependencies: s.dependsOn ? s.dependsOn.map((d: number) => `step_${d}`) : [],
             securityLevel: s.securityLevel,
             status: s.status,
-            durationMs: s.durationMs,
+            duration: s.duration || s.durationMs,
+            durationMs: s.duration || s.durationMs,
             output: s.result?.output,
-            evidence: s.result?.evidence,
+            evidence: s.evidence || s.result?.evidence,
+            verified: s.verified ?? s.result?.evidence?.verified ?? (s.status === 'COMPLETED'),
+            verificationDetails: s.verificationDetails || s.result?.evidence?.verificationDetails,
+            error: s.error,
           }));
-          setSteps(mappedSteps);
-          setExecutionOutput(res.finalResponse || 'Execution complete.');
+
+          setCurrentWorkflow({
+            workflowId: res.plan.goalId || `wf_${Date.now()}`,
+            originalGoal: targetGoal,
+            intent: res.plan.intent,
+            status: res.plan.status === 'COMPLETED' ? 'COMPLETED' : 'FAILED',
+            createdAt: Date.now(),
+            steps: wfSteps,
+            finalResult: {
+              summary: res.finalResponse || '',
+              totalSteps: wfSteps.length,
+              completedSteps: wfSteps.filter((s: any) => s.status === 'COMPLETED').length,
+              failedSteps: wfSteps.filter((s: any) => s.status === 'FAILED').length,
+              blockedSteps: wfSteps.filter((s: any) => s.status === 'BLOCKED').length,
+              skippedSteps: 0,
+              cancelledSteps: wfSteps.filter((s: any) => s.status === 'CANCELLED').length,
+              evidence: wfSteps
+                .filter((s: any) => s.status === 'COMPLETED')
+                .map((s: any) => `✓ ${s.description}`),
+              isSuccess: res.plan.status === 'COMPLETED',
+            },
+          });
         } else {
-          setExecutionOutput(res?.finalResponse || 'No execution plan returned.');
+          setExecutionOutput(res?.finalResponse || 'No execution plan generated.');
         }
       } catch (err: any) {
-        setExecutionOutput(`Execution error: ${err.message}`);
+        setExecutionOutput(`Execution Error: ${err.message || String(err)}`);
       } finally {
         setIsExecuting(false);
       }
       return;
     }
 
-    // Fallback for standalone browser / test mock environment
-    const isSearch = targetGoal.toLowerCase().includes('search');
-    const isApp = targetGoal.toLowerCase().startsWith('open ');
-    const isDiag = targetGoal.toLowerCase().includes('diagnostic');
-    const isSw = targetGoal.toLowerCase().includes('installed');
-
-    const fallbackSteps: PlanStepUI[] = isDiag
-      ? [
-          {
-            stepNumber: 1,
-            description: 'Query live CPU and memory metrics',
-            toolName: 'system.get_metrics',
-            securityLevel: 'SAFE',
-            status: 'COMPLETED',
-            durationMs: 12,
-            output: 'CPU Load: 14% | RAM: 8192 MB / 16384 MB (8192 MB Free)',
-            evidence: { verified: true, verificationDetails: 'Node.js OS subsystem' },
-          },
-          {
-            stepNumber: 2,
-            description: 'Generate comprehensive system diagnostic health report',
-            toolName: 'system.run_diagnostics',
-            securityLevel: 'SAFE',
-            status: 'COMPLETED',
-            durationMs: 28,
-            output: 'JARVIS-X SYSTEM DIAGNOSTIC REPORT: Subsystems Healthy (0 Alerts)',
-            evidence: { verified: true, verificationDetails: 'Full scan completed' },
-          },
-        ]
-      : [
-          {
-            stepNumber: 1,
-            description: `Execute action for "${targetGoal}"`,
-            toolName: isSearch
-              ? 'browser.search_web'
-              : isApp
-                ? 'application.launch'
-                : isSw
-                  ? 'system.check_software'
-                  : 'system.get_metrics',
-            securityLevel: 'SAFE',
-            status: 'COMPLETED',
-            durationMs: 35,
-            output: `Real-world action executed for "${targetGoal}"`,
-            evidence: { verified: true, verificationDetails: 'Verified in system' },
-          },
-        ];
-
-    await new Promise((r) => setTimeout(r, 400));
-    setSteps(fallbackSteps);
-    setIsExecuting(false);
-    setExecutionOutput(`Action completed successfully for "${targetGoal}".`);
+    // Fallback Mock for Isolated Browser Testing
+    setTimeout(() => {
+      setIsExecuting(false);
+      setExecutionOutput(`[Preview Mode] Executed: "${targetGoal}"`);
+    }, 1000);
   };
 
   return (
     <div className="space-y-6">
-      {/* 1. Autonomous Agent Capabilities */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card title="NLU & Dynamic Planner" subtitle="Real-world Action Synthesizer">
-          <div className="mt-4">
-            <div className="text-xl font-bold text-indigo-400">Dynamic Task Planner</div>
-            <div className="text-xs text-slate-400 mt-1">Intent: {activeIntent}</div>
-          </div>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-semibold text-emerald-400">AUTONOMOUS</span>
-          </div>
-        </Card>
+      {/* 1. Header and Quick Controls */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2.5">
+            <span className="text-indigo-400">🤖</span> JARVIS-X Autonomous Agent Hub
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Dynamic tool-aware agent with verified OS evidence and sandboxed security policy
+          </p>
+        </div>
 
-        <Card title="Security & Policy Engine" subtitle="4-Tier Sandbox Authorization">
-          <div className="mt-4">
-            <div className="text-xl font-bold text-emerald-400">Active Policy</div>
-            <div className="text-xs text-slate-400 mt-1">SAFE • CONFIRM • BLOCKED</div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-mono">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Real OS Engine: {availableToolsCount} Registered Tools
           </div>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-xs font-semibold text-emerald-400">ENFORCED</span>
-          </div>
-        </Card>
+        </div>
+      </div>
 
-        <Card title="Real Tool Registry" subtitle="Direct Operating System Access">
-          <div className="mt-4">
-            <div className="text-xl font-bold text-sky-400">{availableToolsCount} Real Tools</div>
-            <div className="text-xs text-slate-400 mt-1">Apps, Browser, Files, Shell, OS, Screen</div>
-          </div>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-sky-400" />
-            <span className="text-xs font-semibold text-sky-400">AUTHENTIC EVIDENCE</span>
-          </div>
-        </Card>
-      </section>
-
-      {/* 2. Interactive Autonomous Goal Execution Bar */}
-      <Card title="Autonomous Goal Execution & Real Task Runner" subtitle="Enter any natural language instruction for real OS execution">
-        <div className="space-y-4 mt-4">
+      {/* 2. Goal Input & Interactive Preset Commands */}
+      <Card title="Goal Execution Console" subtitle="Enter any natural language command for dynamic multi-step planning">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleExecuteGoal(goal);
+          }}
+          className="space-y-4 mt-2"
+        >
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <Input
+                placeholder="e.g. Open Chrome and search for Python machine learning tutorials"
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                placeholder="e.g. Open VS Code, Open Instagram, Create a folder called JARVIS-Test on my Desktop..."
                 disabled={isExecuting}
               />
             </div>
-            <Button
-              variant="primary"
-              onClick={() => handleExecuteGoal(goal)}
-              isLoading={isExecuting}
-              disabled={!goal.trim() || isExecuting}
-              className="sm:w-auto w-full"
-            >
-              Execute Goal
+            <Button type="submit" disabled={isExecuting || !goal.trim()} className="whitespace-nowrap">
+              {isExecuting ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  Executing Real Tools...
+                </span>
+              ) : (
+                '🚀 Execute Goal'
+              )}
             </Button>
           </div>
 
-          {/* Preset Prompts */}
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            <span className="text-xs text-slate-400 py-1 mr-1">Try:</span>
-            {presetGoals.map((preset, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  setGoal(preset);
-                  handleExecuteGoal(preset);
-                }}
-                disabled={isExecuting}
-                className="text-[11px] px-2.5 py-1 rounded bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700/80 disabled:opacity-50"
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      {/* 3. Real Step Execution & Evidence Stream */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Dynamic Execution Plan" subtitle={`${steps.length} Real-World Step(s)`}>
-          <div className="mt-4 space-y-3 max-h-[460px] overflow-y-auto pr-1">
-            {steps.map((step) => (
-              <div
-                key={step.stepNumber}
-                className="p-3.5 rounded-lg bg-slate-950/70 border border-slate-800 space-y-2"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2.5">
-                    <span
-                      className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-                        step.status === 'COMPLETED'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : step.status === 'RUNNING'
-                            ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 animate-pulse'
-                            : step.status === 'BLOCKED' || step.status === 'FAILED'
-                              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                              : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {step.stepNumber}
-                    </span>
-                    <div>
-                      <div className="text-sm font-medium text-slate-200">{step.description}</div>
-                      <div className="flex flex-wrap gap-2 mt-1.5 items-center">
-                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-900 text-sky-400 border border-slate-700">
-                          tool: {step.toolName}
-                        </span>
-                        {step.evidence?.method && (
-                          <span
-                            className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold border ${
-                              step.evidence.method === 'BROWSER_FALLBACK'
-                                ? 'bg-amber-950/50 text-amber-300 border-amber-800/60'
-                                : 'bg-indigo-950/50 text-indigo-300 border-indigo-800/60'
-                            }`}
-                          >
-                            method: {step.evidence.method}
-                          </span>
-                        )}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
-                          policy: {step.securityLevel}
-                        </span>
-                        {step.durationMs !== undefined && (
-                          <span className="text-[10px] text-slate-500">{step.durationMs}ms</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-semibold shrink-0 ${
-                      step.status === 'COMPLETED'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : step.status === 'RUNNING'
-                          ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                          : step.status === 'BLOCKED' || step.status === 'FAILED'
-                            ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                            : 'bg-slate-800 text-slate-400'
-                    }`}
-                  >
-                    {step.status}
-                  </span>
-                </div>
-
-                {/* Evidence & Output Box */}
-                {step.output && (
-                  <div className="mt-2 p-2.5 rounded bg-black/50 border border-slate-800/80 font-mono text-[11px] text-slate-300 space-y-1">
-                    <div className="text-emerald-400/90 font-semibold mb-1">▶ Execution Evidence:</div>
-                    <div className="text-slate-300 whitespace-pre-wrap">{step.output}</div>
-
-                    {step.evidence?.resolvedPath && (
-                      <div className="text-slate-400 text-[10px] break-all">
-                        <span className="text-slate-500">Path:</span> {step.evidence.resolvedPath}
-                      </div>
-                    )}
-                    {step.evidence?.pid && (
-                      <div className="text-sky-400 font-bold">OS PID: {step.evidence.pid}</div>
-                    )}
-                    {step.evidence?.verificationDetails && (
-                      <div className="text-slate-500 text-[10px]">
-                        Verification: {step.evidence.verificationDetails}
-                      </div>
-                    )}
-
-                    {/* Screenshot Preview if available */}
-                    {step.evidence?.dataUrl && (
-                      <div className="mt-2.5 pt-2 border-t border-slate-800/80">
-                        <div className="text-[10px] text-slate-400 mb-1">Captured Screen Preview:</div>
-                        <img
-                          src={step.evidence.dataUrl}
-                          alt="Screenshot Capture"
-                          className="max-h-36 rounded border border-slate-700/60 object-contain shadow-lg bg-black"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card title="Truthful Execution Response" subtitle="Live evidence stream & telemetry verification">
-          <div className="mt-4 p-4 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-slate-300 min-h-[220px] flex flex-col justify-between">
-            <div className="leading-relaxed whitespace-pre-wrap">{executionOutput}</div>
-            <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Execution Engine: Authenticated Real OS</span>
-              <span>Status: {isExecuting ? 'EXECUTING REAL TOOL' : 'IDLE'}</span>
+          <div>
+            <div className="text-xs font-medium text-slate-400 mb-2">Preset Natural Language Goals:</div>
+            <div className="flex flex-wrap gap-2">
+              {presetGoals.map((preset, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    setGoal(preset);
+                    handleExecuteGoal(preset);
+                  }}
+                  disabled={isExecuting}
+                  className="px-2.5 py-1 text-xs rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors disabled:opacity-50"
+                >
+                  {preset}
+                </button>
+              ))}
             </div>
           </div>
-        </Card>
-      </section>
+        </form>
+      </Card>
+
+      {/* View Switcher Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+        <button
+          onClick={() => setActiveTab('workflow')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-colors flex items-center gap-1.5 ${
+            activeTab === 'workflow'
+              ? 'bg-indigo-600 text-white shadow'
+              : 'bg-slate-900 text-slate-400 hover:bg-slate-800'
+          }`}
+        >
+          <span>⚡</span> Multi-Step Workflow Engine
+        </button>
+        <button
+          onClick={() => setActiveTab('steps')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-colors flex items-center gap-1.5 ${
+            activeTab === 'steps'
+              ? 'bg-indigo-600 text-white shadow'
+              : 'bg-slate-900 text-slate-400 hover:bg-slate-800'
+          }`}
+        >
+          <span>📋</span> Detailed Step Breakdown & Evidence
+        </button>
+      </div>
+
+      {activeTab === 'workflow' ? (
+        <WorkflowExecutionPanel
+          workflow={currentWorkflow}
+          onCancel={() => {
+            if ((window as any).electronAPI?.cancelWorkflow) {
+              (window as any).electronAPI.cancelWorkflow(currentWorkflow.workflowId);
+            }
+          }}
+        />
+      ) : (
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card title="Dynamic Execution Plan" subtitle={`${currentPlan.steps.length} Real-World Step(s)`}>
+            <div className="space-y-4 mt-2">
+              {/* UNDERSTANDING SECTION */}
+              <div className="p-3 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-xs">
+                <div className="text-[10px] font-bold tracking-wider uppercase text-indigo-400">UNDERSTANDING</div>
+                <div className="mt-1 flex items-center justify-between text-slate-200">
+                  <span className="font-semibold font-mono text-indigo-300">{currentPlan.intent}</span>
+                  <span className="text-[11px] text-slate-400">Dynamic Tool-Aware Planner</span>
+                </div>
+              </div>
+
+              {/* EXECUTION PLAN STEPS */}
+              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                <div className="text-[11px] font-bold tracking-wider uppercase text-slate-400">EXECUTION PLAN</div>
+                {currentPlan.steps.length === 0 ? (
+                  <div className="p-4 text-xs text-rose-400 rounded-lg bg-rose-950/20 border border-rose-800/30">
+                    ❌ Unsupported capability or no executable steps generated.
+                  </div>
+                ) : (
+                  currentPlan.steps.map((step) => (
+                    <ExecutionStepResult key={step.stepId || step.stepNumber} step={step} />
+                  ))
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Truthful Execution Response" subtitle="Live evidence stream & verified system state">
+            <AgentFinalResult plan={currentPlan} finalResponse={executionOutput} isExecuting={isExecuting} />
+          </Card>
+        </section>
+      )}
     </div>
   );
 };

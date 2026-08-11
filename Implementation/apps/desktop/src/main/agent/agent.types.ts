@@ -31,6 +31,8 @@ export type IntentType =
   | 'MUSIC_LIBRARY_SCAN'
   | 'MEMORY_QUERY'
   | 'MEMORY_SAVE'
+  | 'COMPOSITE_COMMAND'
+  | 'UNSUPPORTED_CAPABILITY'
   | 'UNKNOWN';
 
 export interface ExtractedEntities {
@@ -49,6 +51,7 @@ export interface ExtractedEntities {
   notificationBody?: string;
   memoryKey?: string;
   memoryContent?: string;
+  subGoals?: { intent: IntentType; entities: ExtractedEntities }[];
 }
 
 export interface ParsedGoalIntent {
@@ -125,16 +128,27 @@ export interface IAgentTool {
 }
 
 export interface PlanStep {
+  stepId: string;
   stepNumber: number;
   description: string;
+  tool: string;
   toolName: string;
   toolArgs: Record<string, unknown>;
+  input?: Record<string, unknown>;
+  dependsOn?: number[];
   securityLevel: SecurityLevel;
   status: StepStatus;
+  startedAt?: number;
+  completedAt?: number;
   startTime?: number;
   endTime?: number;
+  duration?: number;
   durationMs?: number;
   result?: ToolExecutionResult;
+  verified?: boolean;
+  verificationDetails?: string;
+  evidence?: ToolExecutionEvidence;
+  error?: string;
 }
 
 export interface AgentExecutionPlan {

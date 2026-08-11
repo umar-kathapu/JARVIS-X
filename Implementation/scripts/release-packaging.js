@@ -34,11 +34,11 @@ const metadata = {
   arch: 'x64',
 };
 
-if (metadata.version !== '1.0.2' || metadata.desktopVersion !== '1.0.2' || metadata.backendVersion !== '1.0.2') {
-  console.error('❌ Version mismatch! Version must be 1.0.2 for Release Candidate.');
+if (metadata.version !== '1.0.3' || metadata.desktopVersion !== '1.0.3' || metadata.backendVersion !== '1.0.3') {
+  console.error('❌ Version mismatch! Version must be 1.0.3 for Release Candidate.');
   process.exit(1);
 }
-console.log('✅ Metadata validated: v1.0.2 (JARVIS-X Core Team)\n');
+console.log('✅ Metadata validated: v1.0.3 (JARVIS-X Core Team)\n');
 
 // 2. Locate Electron Runtime Binary Distribution
 console.log('2. Locating Real Electron Runtime Binaries...');
@@ -172,7 +172,7 @@ console.log(`✅ PE Header Validated: DOS Magic 'MZ', PE Signature at offset 0x$
 
 // 5. Create Standalone Release ZIP Archive
 console.log('5. Generating Complete Production Release Archive (ZIP)...');
-const zipFilename = 'JARVIS-X-1.0.2-win-x64.zip';
+const zipFilename = `JARVIS-X-${metadata.version}-win-x64.zip`;
 const zipPath = path.join(releaseDir, zipFilename);
 
 // Compress win-unpacked directory using .NET ZipFile (Fast, handles read sharing)

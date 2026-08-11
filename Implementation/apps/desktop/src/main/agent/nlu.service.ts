@@ -11,6 +11,12 @@ export class NLUService {
     const rawGoal = (goal || '').trim();
     const normalized = rawGoal.toLowerCase();
 
+    // 0. Explicit Composite Multi-Action Intent ("and search for", "and then", "and open")
+    const composite = this.parseCompositeIntent(rawGoal, normalized);
+    if (composite) {
+      return composite;
+    }
+
     // 1. Browser & Web Navigation / Search Intent
     if (this.isBrowserOrSearchIntent(normalized)) {
       return this.parseBrowserIntent(rawGoal, normalized);
@@ -41,6 +47,16 @@ export class NLUService {
       return this.parseNativeOsIntent(rawGoal, normalized);
     }
 
+    // 7. Check for explicitly unsupported / impossible commands
+    if (this.isUnsupportedIntent(normalized)) {
+      return {
+        rawGoal,
+        primaryIntent: 'UNSUPPORTED_CAPABILITY',
+        entities: { text: rawGoal },
+        confidence: 0.95,
+      };
+    }
+
     // Default Fallback
     return {
       rawGoal,
@@ -48,6 +64,71 @@ export class NLUService {
       entities: { text: rawGoal },
       confidence: 0.3,
     };
+  }
+
+  private parseCompositeIntent(rawGoal: string, text: string): ParsedGoalIntent | null {
+    // Check for "Open <app> and search for <query>"
+    const appAndSearchMatch = rawGoal.match(
+      /^(?:please\s+)?(?:open|launch|start)\s+([a-zA-Z0-9\s._-]+?)\s+and\s+(?:search(?:\s+for)?|google(?:\s+for)?|youtube(?:\s+for)?)\s+(.+)$/i,
+    );
+    if (appAndSearchMatch && appAndSearchMatch[1] && appAndSearchMatch[2]) {
+      const appName = appAndSearchMatch[1].trim();
+      const searchQuery = appAndSearchMatch[2].trim();
+      const appLower = appName.toLowerCase();
+      if (appLower === 'youtube' || appLower === 'google' || appLower === 'web' || appLower === 'the web') {
+        return null;
+      }
+      return {
+        rawGoal,
+        primaryIntent: 'COMPOSITE_COMMAND',
+        entities: {
+          appName,
+          searchQuery,
+          subGoals: [
+            { intent: 'OPEN_APPLICATION', entities: { appName } },
+            { intent: 'SEARCH_WEB', entities: { searchQuery } },
+          ],
+        },
+        confidence: 0.95,
+      };
+    }
+
+    // Check for "Open <app1> and (then )?open <app2>"
+    const multiAppMatch = rawGoal.match(
+      /^(?:please\s+)?(?:open|launch|start)\s+([a-zA-Z0-9\s._-]+?)\s+and\s+(?:then\s+)?(?:open|launch|start)\s+([a-zA-Z0-9\s._-]+)$/i,
+    );
+    if (multiAppMatch && multiAppMatch[1] && multiAppMatch[2]) {
+      const app1 = multiAppMatch[1].trim();
+      const app2 = multiAppMatch[2].trim();
+      return {
+        rawGoal,
+        primaryIntent: 'COMPOSITE_COMMAND',
+        entities: {
+          subGoals: [
+            { intent: 'OPEN_APPLICATION', entities: { appName: app1 } },
+            { intent: 'OPEN_APPLICATION', entities: { appName: app2 } },
+          ],
+        },
+        confidence: 0.95,
+      };
+    }
+
+    return null;
+  }
+
+  private isUnsupportedIntent(text: string): boolean {
+    const unsupportedKeywords = [
+      'fly me',
+      'make coffee',
+      'cook dinner',
+      'turn off the sun',
+      'teleport',
+      'wash dishes',
+      'clean my room',
+      'predict lottery',
+      'hack the pentagon',
+    ];
+    return unsupportedKeywords.some((kw) => text.includes(kw));
   }
 
   private isBrowserOrSearchIntent(text: string): boolean {
@@ -121,6 +202,7 @@ export class NLUService {
     // Extract application target name dynamically
     let appName = rawGoal
       .replace(/^(?:please\s+)?(?:open|launch|start|run)\s+(?:the\s+)?/i, '')
+      .replace(/\s+and\s+verify\s+(?:that\s+)?(?:it\s+is\s+)?(?:running|active).*$/i, '')
       .replace(/\s+(?:app|application|program)$/i, '')
       .trim();
 
@@ -136,6 +218,9 @@ export class NLUService {
 
   private isFilesystemIntent(text: string): boolean {
     return (
+      text.startsWith('read ') ||
+      text.includes('read file') ||
+      text.includes('read the file') ||
       text.includes('create a folder') ||
       text.includes('create folder') ||
       text.includes('create directory') ||
@@ -145,7 +230,6 @@ export class NLUService {
       text.includes('find files') ||
       text.includes('largest files') ||
       text.includes('list files') ||
-      text.includes('read file') ||
       text.includes('open my') ||
       text.includes('downloads folder') ||
       text.includes('desktop')

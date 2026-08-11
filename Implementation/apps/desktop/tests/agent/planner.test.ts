@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { nluService } from '../../src/main/agent/nlu.service.js';
 import { dynamicTaskPlanner } from '../../src/main/agent/planner.service.js';
+import { toolRegistry } from '../../src/main/agent/tool.registry.js';
+import { agentExecutor } from '../../src/main/agent/agent.executor.js';
 
 describe('Dynamic Task Planner', () => {
   it('generates distinct, variable-step plans for different goals', () => {
+    agentExecutor.initializeDefaultTools();
     const goals = [
       'Open Chrome',
       'Open Chrome and navigate to github.com',
@@ -18,19 +21,21 @@ describe('Dynamic Task Planner', () => {
       return dynamicTaskPlanner.createPlan(parsed);
     });
 
-    // Verify all plans are distinct in tool names, descriptions, or step counts
+    // Verify all plans are distinct in tool sequences
     const toolSequences = plans.map((p) => p.steps.map((s) => s.toolName).join(' -> '));
     const uniqueToolSequences = new Set(toolSequences);
     expect(uniqueToolSequences.size).toBe(goals.length);
   });
 
-  it('assigns correct tool arguments for application launch', () => {
+  it('assigns correct modular tool sequence for application launch', () => {
     const parsed = nluService.parseGoal('Open WhatsApp');
     const plan = dynamicTaskPlanner.createPlan(parsed);
 
-    expect(plan.steps.length).toBe(1);
-    expect(plan.steps[0]?.toolName).toBe('application.launch');
+    expect(plan.steps.length).toBe(3);
+    expect(plan.steps[0]?.toolName).toBe('application.resolve');
     expect(plan.steps[0]?.toolArgs.appName).toBe('WhatsApp');
+    expect(plan.steps[1]?.toolName).toBe('application.launch');
+    expect(plan.steps[2]?.toolName).toBe('application.verify');
   });
 
   it('generates multi-step plan for system diagnostics', () => {
@@ -40,5 +45,6 @@ describe('Dynamic Task Planner', () => {
     expect(plan.steps.length).toBe(2);
     expect(plan.steps[0]?.toolName).toBe('system.get_metrics');
     expect(plan.steps[1]?.toolName).toBe('system.run_diagnostics');
+    expect(plan.steps[1]?.dependsOn).toEqual([1]);
   });
 });
