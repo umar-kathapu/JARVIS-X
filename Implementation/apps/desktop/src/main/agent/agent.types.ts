@@ -148,6 +148,7 @@ export interface PlanStep {
   verified?: boolean;
   verificationDetails?: string;
   evidence?: ToolExecutionEvidence;
+  output?: string;
   error?: string;
 }
 

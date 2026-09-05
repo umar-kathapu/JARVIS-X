@@ -268,6 +268,7 @@ export class AgentExecutor {
       // Real Tool Execution
       const result = await toolRegistry.executeTool(step.toolName, step.toolArgs);
       step.result = result;
+      step.output = result.output;
       step.completedAt = Date.now();
       step.endTime = performance.now();
       step.duration = Math.round(step.endTime - step.startTime);

@@ -127,8 +127,10 @@ export class ApplicationLaunchTool implements IAgentTool {
         resolvedPath: launchResult.resolvedPath,
         url: launchResult.targetUrl,
         pid: launchResult.pid,
+        pids: launchResult.pids,
         processName: launchResult.processName,
         method: launchResult.method,
+        launchMethod: launchResult.launchMethod,
       },
     };
   }
@@ -160,8 +162,8 @@ export class ApplicationVerifyTool implements IAgentTool {
       let isAlive = true;
       try {
         process.kill(pid, 0);
-      } catch {
-        isAlive = false;
+      } catch (err: any) {
+        isAlive = err?.code === 'EPERM';
       }
 
       return {
